@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class WebSocketEventPublisher:
     """
     WebSocket implementation of EventPublisher.
-    
+
     Wraps notification_utils and ChatConnectionProtocol to publish
     events to connected WebSocket clients.
     """
@@ -20,7 +20,7 @@ class WebSocketEventPublisher:
     def __init__(self, connection: Optional[ChatConnectionProtocol] = None):
         """
         Initialize WebSocket event publisher.
-        
+
         Args:
             connection: WebSocket connection for sending messages
         """
@@ -42,42 +42,27 @@ class WebSocketEventPublisher:
     async def publish_response_complete(self) -> None:
         """Signal that the response is complete."""
         if self.connection:
-            await notification_utils.notify_response_complete(
-                self.connection.send_json
-            )
+            await notification_utils.notify_response_complete(self.connection.send_json)
 
-    async def publish_agent_update(
-        self,
-        update_type: str,
-        **kwargs: Any
-    ) -> None:
+    async def publish_agent_update(self, update_type: str, **kwargs: Any) -> None:
         """Publish an agent-specific update."""
         if self.connection:
             await notification_utils.notify_agent_update(
-                update_type=update_type,
-                connection=self.connection,
-                **kwargs
+                update_type=update_type, connection=self.connection, **kwargs
             )
 
-    async def publish_tool_start(
-        self,
-        tool_name: str,
-        **kwargs: Any
-    ) -> None:
+    async def publish_tool_start(self, tool_name: str, **kwargs: Any) -> None:
         """Publish notification that a tool is starting."""
         if self.connection:
             await notification_utils.notify_agent_update(
                 update_type="tool_start",
                 connection=self.connection,
                 tool=tool_name,
-                **kwargs
+                **kwargs,
             )
 
     async def publish_tool_complete(
-        self,
-        tool_name: str,
-        result: Any,
-        **kwargs: Any
+        self, tool_name: str, result: Any, **kwargs: Any
     ) -> None:
         """Publish notification that a tool has completed."""
         if self.connection:
@@ -86,34 +71,27 @@ class WebSocketEventPublisher:
                 connection=self.connection,
                 tool=tool_name,
                 result=result,
-                **kwargs
+                **kwargs,
             )
 
-    async def publish_files_update(
-        self,
-        files: Dict[str, Any]
-    ) -> None:
+    async def publish_files_update(self, files: Dict[str, Any]) -> None:
         """Publish update about session files."""
         if self.connection:
-            await self.connection.send_json({
-                "type": "files_update",
-                "files": files
-            })
+            await self.connection.send_json({"type": "files_update", "files": files})
 
     async def publish_canvas_content(
-        self,
-        content: str,
-        content_type: str = "text/html",
-        **kwargs: Any
+        self, content: str, content_type: str = "text/html", **kwargs: Any
     ) -> None:
         """Publish content for canvas display."""
         if self.connection:
-            await self.connection.send_json({
-                "type": "canvas_content",
-                "content": content,
-                "content_type": content_type,
-                **kwargs
-            })
+            await self.connection.send_json(
+                {
+                    "type": "canvas_content",
+                    "content": content,
+                    "content_type": content_type,
+                    **kwargs,
+                }
+            )
 
     async def send_json(self, data: Dict[str, Any]) -> None:
         """Send raw JSON message."""

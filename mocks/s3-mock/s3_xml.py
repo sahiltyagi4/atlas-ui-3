@@ -3,9 +3,17 @@ from typing import Dict, List
 from xml.dom import minidom
 
 
-def create_list_objects_xml(bucket: str, prefix: str, objects: List[Dict[str, str]], is_truncated: bool = False, continuation_token: str = "") -> str:
+def create_list_objects_xml(
+    bucket: str,
+    prefix: str,
+    objects: List[Dict[str, str]],
+    is_truncated: bool = False,
+    continuation_token: str = "",
+) -> str:
     """Generate S3 ListObjectsV2 XML response."""
-    root = ET.Element("ListBucketResult", xmlns="http://s3.amazonaws.com/doc/2006-03-01/")
+    root = ET.Element(
+        "ListBucketResult", xmlns="http://s3.amazonaws.com/doc/2006-03-01/"
+    )
 
     ET.SubElement(root, "Name").text = bucket
     ET.SubElement(root, "Prefix").text = prefix
@@ -24,7 +32,7 @@ def create_list_objects_xml(bucket: str, prefix: str, objects: List[Dict[str, st
         ET.SubElement(contents, "StorageClass").text = "STANDARD"
 
     # Pretty print XML
-    rough_string = ET.tostring(root, encoding='unicode')
+    rough_string = ET.tostring(root, encoding="unicode")
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
@@ -40,7 +48,7 @@ def create_tagging_xml(tags: Dict[str, str]) -> str:
         ET.SubElement(tag, "Value").text = value
 
     # Pretty print XML
-    rough_string = ET.tostring(root, encoding='unicode')
+    rough_string = ET.tostring(root, encoding="unicode")
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
@@ -73,6 +81,6 @@ def create_error_xml(code: str, message: str, resource: str = "") -> str:
         ET.SubElement(root, "Resource").text = resource
 
     # Pretty print XML
-    rough_string = ET.tostring(root, encoding='unicode')
+    rough_string = ET.tostring(root, encoding="unicode")
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")

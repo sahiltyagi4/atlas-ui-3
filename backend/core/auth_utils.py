@@ -22,6 +22,8 @@ class AuthorizationManager:
         return await self.auth_check_func(user_email, self.app_settings.admin_group)
 
 
-def create_authorization_manager(auth_check_func: AuthCheckFunc) -> AuthorizationManager:
+def create_authorization_manager(
+    auth_check_func: AuthCheckFunc,
+) -> AuthorizationManager:
     """Factory function to create an AuthorizationManager."""
     return AuthorizationManager(auth_check_func)

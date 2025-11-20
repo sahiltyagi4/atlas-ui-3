@@ -18,13 +18,16 @@ def test_security_headers_present_by_default():
 def test_download_filename_sanitized(monkeypatch):
     # Insert a file into mock S3 listing by calling upload
     from infrastructure.app_factory import app_factory
+
     fm = app_factory.get_file_manager()
 
     # Prepare malicious filename
-    bad_name = 'evil\r\nInjected.txt'
+    bad_name = "evil\r\nInjected.txt"
     content = "SGVsbG8="  # base64(Hello)
 
-    async def upload_stub(user_email, filename, content_base64, content_type, tags, source_type):
+    async def upload_stub(
+        user_email, filename, content_base64, content_type, tags, source_type
+    ):
         return {
             "key": "k_mal",
             "filename": filename,
@@ -56,7 +59,9 @@ def test_download_filename_sanitized(monkeypatch):
     client = TestClient(app)
 
     # Trigger download endpoint directly (no need to actually upload first)
-    r = client.get("/api/files/download/k_mal", headers={"X-User-Email": "test@test.com"})
+    r = client.get(
+        "/api/files/download/k_mal", headers={"X-User-Email": "test@test.com"}
+    )
     assert r.status_code == 200
     cd = r.headers.get("Content-Disposition", "")
     assert "\r" not in cd and "\n" not in cd

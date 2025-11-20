@@ -21,20 +21,24 @@ UpdateCallback = Callable[[Dict[str, Any]], Awaitable[None]]
 class AgentModeRunner:
     """
     Runner for agent mode.
-    
+
     Executes agent loops with event streaming and artifact processing.
     """
-    
+
     def __init__(
         self,
         agent_loop_factory: AgentLoopFactory,
         event_publisher: EventPublisher,
-        artifact_processor: Optional[Callable[[Session, List[ToolResult], Optional[UpdateCallback]], Awaitable[None]]] = None,
+        artifact_processor: Optional[
+            Callable[
+                [Session, List[ToolResult], Optional[UpdateCallback]], Awaitable[None]
+            ]
+        ] = None,
         default_strategy: str = "think-act",
     ):
         """
         Initialize agent mode runner.
-        
+
         Args:
             agent_loop_factory: Factory for creating agent loops
             event_publisher: Event publisher for UI updates
@@ -45,7 +49,7 @@ class AgentModeRunner:
         self.event_publisher = event_publisher
         self.artifact_processor = artifact_processor
         self.default_strategy = default_strategy
-    
+
     async def run(
         self,
         session: Session,
@@ -59,7 +63,7 @@ class AgentModeRunner:
     ) -> Dict[str, Any]:
         """
         Execute agent mode.
-        
+
         Args:
             session: Current chat session
             model: LLM model to use
@@ -69,7 +73,7 @@ class AgentModeRunner:
             max_steps: Maximum number of agent steps
             temperature: LLM temperature parameter
             agent_loop_strategy: Strategy name (react, think-act). Falls back to default.
-            
+
         Returns:
             Response dictionary
         """
@@ -118,8 +122,7 @@ class AgentModeRunner:
 
         # Completion update
         await self.event_publisher.publish_agent_update(
-            update_type="agent_completion",
-            steps=result.steps
+            update_type="agent_completion", steps=result.steps
         )
 
         return notification_utils.create_chat_response(result.final_answer)

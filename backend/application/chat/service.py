@@ -6,12 +6,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Callable, Awaitable
 from uuid import UUID
 
-from domain.messages.models import (
-    Message,
-    MessageRole,
-    MessageType,
-    ToolResult
-)
+from domain.messages.models import Message, MessageRole, MessageType, ToolResult
 from domain.sessions.models import Session
 from interfaces.llm import LLMProtocol, LLMResponse
 from interfaces.events import EventPublisher
@@ -38,8 +33,6 @@ from .modes.tools import ToolsModeRunner
 from .modes.agent import AgentModeRunner
 
 
-
-
 logger = logging.getLogger(__name__)
 
 # Type hint for the update callback
@@ -51,7 +44,7 @@ class ChatService:
     Core chat service that orchestrates chat operations.
     Transport-agnostic, testable business logic.
     """
-    
+
     def __init__(
         self,
         llm: LLMProtocol,
@@ -90,23 +83,31 @@ class ChatService:
             self.event_publisher = event_publisher
         else:
             # Create default WebSocket publisher
-            from infrastructure.events.websocket_publisher import WebSocketEventPublisher
+            from infrastructure.events.websocket_publisher import (
+                WebSocketEventPublisher,
+            )
+
             self.event_publisher = WebSocketEventPublisher(connection=self.connection)
-        
+
         # Initialize or use provided session repository
         if session_repository is not None:
             self.session_repository = session_repository
         else:
             # Create default in-memory repository
-            from infrastructure.sessions.in_memory_repository import InMemorySessionRepository
+            from infrastructure.sessions.in_memory_repository import (
+                InMemorySessionRepository,
+            )
+
             self.session_repository = InMemorySessionRepository()
-        
+
         # Legacy sessions dict - deprecated, use session_repository instead
         # Kept temporarily for backward compatibility
         self.sessions: Dict[UUID, Session] = {}
 
         # Initialize refactored services
-        self.tool_authorization = ToolAuthorizationService(tool_manager=self.tool_manager)
+        self.tool_authorization = ToolAuthorizationService(
+            tool_manager=self.tool_manager
+        )
         self.prompt_override = PromptOverrideService(tool_manager=self.tool_manager)
         self.message_builder = MessageBuilder()
 
@@ -127,8 +128,6 @@ class ChatService:
             artifact_processor=self._update_session_from_tool_results,
             config_manager=self.config_manager,
         )
-
-
 
         # Agent loop factory - create if not provided
         if agent_loop_factory is not None:
@@ -152,7 +151,7 @@ class ChatService:
         except Exception:
             # Ignore config errors - fall back to default strategy
             pass
-        
+
         # Initialize agent mode runner (after agent_loop_factory is set)
         self.agent_mode = AgentModeRunner(
             agent_loop_factory=self.agent_loop_factory,
@@ -160,14 +159,17 @@ class ChatService:
             artifact_processor=self._update_session_from_tool_results,
             default_strategy=self.default_agent_strategy,
         )
-        
+
         # Initialize orchestrator
-        self.orchestrator = None  # Will be initialized lazily to avoid circular dependency
+        self.orchestrator = (
+            None  # Will be initialized lazily to avoid circular dependency
+        )
 
     def _get_orchestrator(self):
         """Lazy initialization of orchestrator."""
         if self.orchestrator is None:
             from .orchestrator import ChatOrchestrator
+
             self.orchestrator = ChatOrchestrator(
                 llm=self.llm,
                 event_publisher=self.event_publisher,
@@ -184,20 +186,20 @@ class ChatService:
         return self.orchestrator
 
     async def create_session(
-        self,
-        session_id: UUID,
-        user_email: Optional[str] = None
+        self, session_id: UUID, user_email: Optional[str] = None
     ) -> Session:
         """Create a new chat session."""
         session = Session(id=session_id, user_email=user_email)
-        
+
         # Store in both legacy dict and new repository
         self.sessions[session_id] = session
         await self.session_repository.create(session)
-        
-        logger.info(f"Created session {sanitize_for_logging(str(session_id))} for user {sanitize_for_logging(user_email)}")
+
+        logger.info(
+            f"Created session {sanitize_for_logging(str(session_id))} for user {sanitize_for_logging(user_email)}"
+        )
         return session
-    
+
     async def handle_chat_message(
         self,
         session_id: UUID,
@@ -212,11 +214,11 @@ class ChatService:
         agent_mode: bool = False,
         temperature: float = 0.7,
         update_callback: Optional[UpdateCallback] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Handle incoming chat message - thin façade delegating to orchestrator.
-        
+
         Returns:
             Response dictionary to send to client
         """
@@ -243,7 +245,7 @@ class ChatService:
             else:
                 # Sync to legacy dict
                 self.sessions[session_id] = session
-        
+
         try:
             # Delegate to orchestrator
             orchestrator = self._get_orchestrator()
@@ -260,15 +262,13 @@ class ChatService:
                 agent_mode=agent_mode,
                 temperature=temperature,
                 update_callback=update_callback,
-                **kwargs
+                **kwargs,
             )
         except Exception as e:
             return error_utils.handle_chat_message_error(e, "chat message handling")
-            
+
     async def handle_reset_session(
-        self,
-        session_id: UUID,
-        user_email: Optional[str] = None
+        self, session_id: UUID, user_email: Optional[str] = None
     ) -> Dict[str, Any]:
         """Handle session reset request from frontend."""
         # End the current session
@@ -277,12 +277,14 @@ class ChatService:
         # Create a new session
         await self.create_session(session_id, user_email)
 
-        logger.info(f"Reset session {sanitize_for_logging(str(session_id))} for user {sanitize_for_logging(user_email)}")
-        
+        logger.info(
+            f"Reset session {sanitize_for_logging(str(session_id))} for user {sanitize_for_logging(user_email)}"
+        )
+
         return {
             "type": "session_reset",
             "session_id": str(session_id),
-            "message": "New session created"
+            "message": "New session created",
         }
 
     async def handle_attach_file(
@@ -290,7 +292,7 @@ class ChatService:
         session_id: UUID,
         s3_key: str,
         user_email: Optional[str] = None,
-        update_callback: Optional[UpdateCallback] = None
+        update_callback: Optional[UpdateCallback] = None,
     ) -> Dict[str, Any]:
         """Attach a file from library to the current session."""
         session = self.sessions.get(session_id)
@@ -303,7 +305,7 @@ class ChatService:
                 "type": "file_attach",
                 "s3_key": s3_key,
                 "success": False,
-                "error": "File manager not available or no user email"
+                "error": "File manager not available or no user email",
             }
 
         try:
@@ -314,7 +316,7 @@ class ChatService:
                     "type": "file_attach",
                     "s3_key": s3_key,
                     "success": False,
-                    "error": "File not found"
+                    "error": "File not found",
                 }
 
             filename = file_result.get("filename")
@@ -323,7 +325,7 @@ class ChatService:
                     "type": "file_attach",
                     "s3_key": s3_key,
                     "success": False,
-                    "error": "Invalid file metadata"
+                    "error": "Invalid file metadata",
                 }
 
             # Add file reference directly to session context (file already exists in S3)
@@ -335,7 +337,7 @@ class ChatService:
                 "last_modified": file_result.get("last_modified"),
             }
 
-            sanitized_s3_key = s3_key.replace('\r', '').replace('\n', '')
+            sanitized_s3_key = s3_key.replace("\r", "").replace("\n", "")
             logger.info(f"Attached file ({sanitized_s3_key}) to session {session_id}")
 
             # Emit files_update to notify UI
@@ -343,7 +345,7 @@ class ChatService:
                 await file_utils.emit_files_update_from_context(
                     session_context=session.context,
                     file_manager=self.file_manager,
-                    update_callback=update_callback
+                    update_callback=update_callback,
                 )
 
             return {
@@ -351,23 +353,22 @@ class ChatService:
                 "s3_key": s3_key,
                 "filename": filename,
                 "success": True,
-                "message": f"File {filename} attached to session"
+                "message": f"File {filename} attached to session",
             }
 
         except Exception as e:
-            logger.error(f"Failed to attach file {s3_key.replace('\n', '').replace('\r', '')} to session {session_id}: {str(e).replace('\n', '').replace('\r', '')}")
+            logger.error(
+                f"Failed to attach file {s3_key.replace('\n', '').replace('\r', '')} to session {session_id}: {str(e).replace('\n', '').replace('\r', '')}"
+            )
             return {
                 "type": "file_attach",
                 "s3_key": s3_key,
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def handle_download_file(
-        self,
-        session_id: UUID,
-        filename: str,
-        user_email: Optional[str]
+        self, session_id: UUID, filename: str, user_email: Optional[str]
     ) -> Dict[str, Any]:
         """Download a file by original filename (within session context)."""
         session = self.sessions.get(session_id)
@@ -375,45 +376,43 @@ class ChatService:
             return {
                 "type": MessageType.FILE_DOWNLOAD.value,
                 "filename": filename,
-                "error": "Session or file manager not available"
+                "error": "Session or file manager not available",
             }
         ref = session.context.get("files", {}).get(filename)
         if not ref:
             return {
                 "type": MessageType.FILE_DOWNLOAD.value,
                 "filename": filename,
-                "error": "File not found in session"
+                "error": "File not found in session",
             }
         try:
             content_b64 = await self.file_manager.get_file_content(
-                user_email=user_email,
-                filename=filename,
-                s3_key=ref.get("key")
+                user_email=user_email, filename=filename, s3_key=ref.get("key")
             )
             if not content_b64:
                 return {
                     "type": MessageType.FILE_DOWNLOAD.value,
                     "filename": filename,
-                    "error": "Unable to retrieve file content"
+                    "error": "Unable to retrieve file content",
                 }
             return {
                 "type": MessageType.FILE_DOWNLOAD.value,
                 "filename": filename,
-                "content_base64": content_b64
+                "content_base64": content_b64,
             }
         except Exception as e:
             logger.error(f"Download failed for {filename}: {e}")
             return {
                 "type": MessageType.FILE_DOWNLOAD.value,
                 "filename": filename,
-                "error": str(e)
+                "error": str(e),
             }
-    
+
     async def _update_session_from_tool_results(
         self,
         session: Session,
         tool_results: List[ToolResult],
-        update_callback: Optional[UpdateCallback]
+        update_callback: Optional[UpdateCallback],
     ) -> None:
         """Persist tool artifacts, update session context, and notify UI for canvas."""
         if not tool_results:
@@ -433,18 +432,22 @@ class ChatService:
                     session_context=session_context,
                     tool_result=result,
                     file_manager=self.file_manager,
-                    update_callback=update_callback
+                    update_callback=update_callback,
                 )
 
             # Persist updated context back to the session
-            session.context.update({k: v for k, v in session_context.items() if k != "session_id"})
+            session.context.update(
+                {k: v for k, v in session_context.items() if k != "session_id"}
+            )
         except Exception as e:
-            logger.error(f"Failed to update session from tool results: {e}", exc_info=True)
+            logger.error(
+                f"Failed to update session from tool results: {e}", exc_info=True
+            )
 
     def get_session(self, session_id: UUID) -> Optional[Session]:
         """Get session by ID."""
         return self.sessions.get(session_id)
-    
+
     def end_session(self, session_id: UUID) -> None:
         """End a session."""
         if session_id in self.sessions:

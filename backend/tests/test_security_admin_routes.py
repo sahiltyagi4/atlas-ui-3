@@ -24,7 +24,9 @@ def test_system_status_endpoint():
     client = TestClient(app)
 
     # Test with admin user
-    r = client.get("/admin/system-status", headers={"X-User-Email": "admin@example.com"})
+    r = client.get(
+        "/admin/system-status", headers={"X-User-Email": "admin@example.com"}
+    )
     assert r.status_code == 200
 
     data = r.json()

@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 class RagModeRunner:
     """
     Runner for RAG mode.
-    
+
     Executes LLM calls with Retrieval-Augmented Generation integration.
     """
-    
+
     def __init__(
         self,
         llm: LLMProtocol,
@@ -26,14 +26,14 @@ class RagModeRunner:
     ):
         """
         Initialize RAG mode runner.
-        
+
         Args:
             llm: LLM protocol implementation
             event_publisher: Event publisher for UI updates
         """
         self.llm = llm
         self.event_publisher = event_publisher
-    
+
     async def run(
         self,
         session: Session,
@@ -45,7 +45,7 @@ class RagModeRunner:
     ) -> Dict[str, Any]:
         """
         Execute RAG mode.
-        
+
         Args:
             session: Current chat session
             model: LLM model to use
@@ -53,7 +53,7 @@ class RagModeRunner:
             data_sources: List of data sources to query
             user_email: User email for authorization
             temperature: LLM temperature parameter
-            
+
         Returns:
             Response dictionary
         """
@@ -66,7 +66,7 @@ class RagModeRunner:
         assistant_message = Message(
             role=MessageRole.ASSISTANT,
             content=response_content,
-            metadata={"data_sources": data_sources}
+            metadata={"data_sources": data_sources},
         )
         session.history.add_message(assistant_message)
 

@@ -49,10 +49,19 @@ def httpdate(ts: float) -> str:
 
 
 def iso8601(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    )
 
 
-def save_object(bucket_root: Path, key: str, data: bytes, content_type: str, metadata: Dict[str, str], tags: Dict[str, str]) -> Dict[str, str]:
+def save_object(
+    bucket_root: Path,
+    key: str,
+    data: bytes,
+    content_type: str,
+    metadata: Dict[str, str],
+    tags: Dict[str, str],
+) -> Dict[str, str]:
     obj_path, meta_path = object_paths(bucket_root, key)
     tmp_path = obj_path.with_suffix(obj_path.suffix + ".tmp")
     # Atomic write
@@ -106,7 +115,9 @@ def delete_object(bucket_root: Path, key: str) -> bool:
     return deleted
 
 
-def list_objects(bucket_root: Path, prefix: str = "", max_keys: int = 100) -> List[Dict[str, str]]:
+def list_objects(
+    bucket_root: Path, prefix: str = "", max_keys: int = 100
+) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     base = bucket_root
     for root, _, files in os.walk(base):
@@ -124,12 +135,14 @@ def list_objects(bucket_root: Path, prefix: str = "", max_keys: int = 100) -> Li
             if not etag:
                 with open(obj_path, "rb") as f:
                     etag = calc_etag(f.read())
-            items.append({
-                "Key": key,
-                "Size": size,
-                "ETag": etag,
-                "LastModified": iso8601(obj_path.stat().st_mtime),
-            })
+            items.append(
+                {
+                    "Key": key,
+                    "Size": size,
+                    "ETag": etag,
+                    "LastModified": iso8601(obj_path.stat().st_mtime),
+                }
+            )
             if len(items) >= max_keys:
                 return items
     # Sort by last modified desc to mimic S3 behavior often seen by clients
@@ -138,7 +151,11 @@ def list_objects(bucket_root: Path, prefix: str = "", max_keys: int = 100) -> Li
 
 
 def set_tags(bucket_root: Path, key: str, tags: Dict[str, str]) -> None:
-    meta = load_meta(bucket_root, key) or {"metadata": {}, "content_type": "application/octet-stream", "etag": ""}
+    meta = load_meta(bucket_root, key) or {
+        "metadata": {},
+        "content_type": "application/octet-stream",
+        "etag": "",
+    }
     meta["tags"] = tags
     _, meta_path = object_paths(bucket_root, key)
     with open(meta_path, "w", encoding="utf-8") as f:

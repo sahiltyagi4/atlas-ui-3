@@ -2,7 +2,7 @@
 
 This module provides:
 - RAG query processing and context retrieval
-- Document metadata and search capabilities  
+- Document metadata and search capabilities
 - Integration with external RAG services
 """
 
@@ -13,7 +13,7 @@ rag_client = RAGClient()
 
 __all__ = [
     "RAGClient",
-    "DocumentMetadata", 
+    "DocumentMetadata",
     "RAGMetadata",
     "RAGResponse",
     "rag_client",

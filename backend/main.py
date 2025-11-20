@@ -26,7 +26,9 @@ from core.utils import sanitize_for_logging
 
 # Import from infrastructure
 from infrastructure.app_factory import app_factory
-from infrastructure.transport.websocket_connection_adapter import WebSocketConnectionAdapter
+from infrastructure.transport.websocket_connection_adapter import (
+    WebSocketConnectionAdapter,
+)
 
 # Import essential routes
 from routes.config_routes import router as config_router
@@ -49,7 +51,9 @@ async def websocket_update_callback(websocket: WebSocket, message: dict):
     try:
         mtype = message.get("type")
         if mtype == "intermediate_update":
-            utype = message.get("update_type") or message.get("data", {}).get("update_type")
+            utype = message.get("update_type") or message.get("data", {}).get(
+                "update_type"
+            )
             # Handle specific update types (canvas_files, files_update)
             # Logging disabled for these message types - see git history if needed
             if utype in ("canvas_files", "files_update"):
@@ -70,38 +74,38 @@ async def websocket_update_callback(websocket: WebSocket, message: dict):
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Starting Chat UI Backend with modular architecture")
-    
+
     # Initialize configuration
     config = app_factory.get_config_manager()
-    
+
     logger.info(f"Backend initialized with {len(config.llm_config.models)} LLM models")
     logger.info(f"MCP servers configured: {len(config.mcp_config.servers)}")
-    
+
     # Initialize MCP tools manager
     logger.info("Initializing MCP tools manager...")
     mcp_manager = app_factory.get_mcp_manager()
-    
+
     try:
         logger.info("Step 1: Initializing MCP clients...")
         await mcp_manager.initialize_clients()
         logger.info("Step 1 complete: MCP clients initialized")
-        
+
         logger.info("Step 2: Discovering tools...")
         await mcp_manager.discover_tools()
         logger.info("Step 2 complete: Tool discovery finished")
-        
+
         logger.info("Step 3: Discovering prompts...")
         await mcp_manager.discover_prompts()
         logger.info("Step 3 complete: Prompt discovery finished")
-        
+
         logger.info("MCP tools manager initialization complete")
     except Exception as e:
         logger.error(f"Error during MCP initialization: {e}", exc_info=True)
         # Continue startup even if MCP fails
         logger.warning("Continuing startup without MCP tools")
-    
+
     yield
-    
+
     logger.info("Shutting down Chat UI Backend")
     # Cleanup MCP clients
     await mcp_manager.cleanup()
@@ -110,7 +114,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app with minimal setup
 app = FastAPI(
     title="Chat UI Backend",
-    description="Basic chat backend with modular architecture", 
+    description="Basic chat backend with modular architecture",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -124,13 +128,13 @@ RateLimit first to cheaply throttle abusive traffic before heavier logic.
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
-    AuthMiddleware, 
+    AuthMiddleware,
     debug_mode=config.app_settings.debug_mode,
     auth_header_name=config.app_settings.auth_user_header,
     proxy_secret_enabled=config.app_settings.feature_proxy_secret_enabled,
     proxy_secret_header=config.app_settings.proxy_secret_header,
     proxy_secret=config.app_settings.proxy_secret,
-    auth_redirect_url=config.app_settings.auth_redirect_url
+    auth_redirect_url=config.app_settings.auth_redirect_url,
 )
 
 # Include essential routes (add files API)
@@ -178,6 +182,7 @@ if static_dir.exists():
         path = static_dir / "logo.png"
         return FileResponse(str(path))
 
+
 # WebSocket endpoint for chat
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -197,7 +202,7 @@ async def websocket_endpoint(websocket: WebSocket):
     5. If valid: Auth service returns authenticated user header
     6. Reverse proxy forwards connection to this app with authenticated user header
     7. This app trusts the header (already validated by auth service)
-    
+
     The header name is configurable via AUTH_USER_HEADER environment variable
     (default: X-User-Email). This allows flexibility for different reverse proxy setups.
 
@@ -216,19 +221,21 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     # Basic auth: derive user from query parameters or use test user
-    user_email = websocket.query_params.get('user')
+    user_email = websocket.query_params.get("user")
     if not user_email:
         # Fallback to test user or require auth
         config_manager = app_factory.get_config_manager()
-        user_email = config_manager.app_settings.test_user or 'test@test.com'
+        user_email = config_manager.app_settings.test_user or "test@test.com"
 
     session_id = uuid4()
 
     # Create connection adapter with authenticated user and chat service
     connection_adapter = WebSocketConnectionAdapter(websocket, user_email)
     chat_service = app_factory.create_chat_service(connection_adapter)
-    
-    logger.info(f"WebSocket connection established for session {sanitize_for_logging(str(session_id))}")
+
+    logger.info(
+        f"WebSocket connection established for session {sanitize_for_logging(str(session_id))}"
+    )
 
     try:
         while True:
@@ -239,7 +246,7 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.info(
                 "WS RECEIVED message_type=[%s], data keys=%s",
                 sanitize_for_logging(message_type),
-                [f"[{sanitize_for_logging(key)}]" for key in data.keys()]
+                [f"[{sanitize_for_logging(key)}]" for key in data.keys()],
             )
 
             if message_type == "chat":
@@ -254,44 +261,43 @@ async def websocket_endpoint(websocket: WebSocket):
                             selected_prompts=data.get("selected_prompts"),
                             selected_data_sources=data.get("selected_data_sources"),
                             only_rag=data.get("only_rag", False),
-                            tool_choice_required=data.get("tool_choice_required", False),
+                            tool_choice_required=data.get(
+                                "tool_choice_required", False
+                            ),
                             user_email=data.get("user"),
                             agent_mode=data.get("agent_mode", False),
                             agent_max_steps=data.get("agent_max_steps", 10),
                             temperature=data.get("temperature", 0.7),
                             agent_loop_strategy=data.get("agent_loop_strategy"),
-                            update_callback=lambda message: websocket_update_callback(websocket, message),
-                            files=data.get("files")
+                            update_callback=lambda message: websocket_update_callback(
+                                websocket, message
+                            ),
+                            files=data.get("files"),
                         )
                     except ValidationError as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e)
-                        })
+                        await websocket.send_json({"type": "error", "message": str(e)})
                     except Exception as e:
                         logger.error(f"Error in chat handler: {e}", exc_info=True)
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": "An unexpected error occurred"
-                        })
+                        await websocket.send_json(
+                            {"type": "error", "message": "An unexpected error occurred"}
+                        )
 
                 # Start chat handling in background
                 asyncio.create_task(handle_chat())
-                
+
             elif message_type == "download_file":
                 # Handle file download
                 response = await chat_service.handle_download_file(
                     session_id=session_id,
                     filename=data.get("filename", ""),
-                    user_email=data.get("user")
+                    user_email=data.get("user"),
                 )
                 await websocket.send_json(response)
-            
+
             elif message_type == "reset_session":
                 # Handle session reset
                 response = await chat_service.handle_reset_session(
-                    session_id=session_id,
-                    user_email=data.get("user")
+                    session_id=session_id, user_email=data.get("user")
                 )
                 await websocket.send_json(response)
 
@@ -301,40 +307,53 @@ async def websocket_endpoint(websocket: WebSocket):
                     session_id=session_id,
                     s3_key=data.get("s3_key"),
                     user_email=user_email,  # Use authenticated user from connection
-                    update_callback=lambda message: websocket_update_callback(websocket, message)
+                    update_callback=lambda message: websocket_update_callback(
+                        websocket, message
+                    ),
                 )
                 await websocket.send_json(response)
 
             elif message_type == "tool_approval_response":
                 # Handle tool approval response
-                logger.info(f"Received tool approval response: {sanitize_for_logging(str(data))}")
+                logger.info(
+                    f"Received tool approval response: {sanitize_for_logging(str(data))}"
+                )
                 from application.chat.approval_manager import get_approval_manager
+
                 approval_manager = get_approval_manager()
-                
+
                 tool_call_id = data.get("tool_call_id")
                 approved = data.get("approved", False)
                 arguments = data.get("arguments")
                 reason = data.get("reason")
 
-                logger.info(f"Processing approval: tool_call_id={sanitize_for_logging(tool_call_id)}, approved={approved}")
-                
+                logger.info(
+                    f"Processing approval: tool_call_id={sanitize_for_logging(tool_call_id)}, approved={approved}"
+                )
+
                 result = approval_manager.handle_approval_response(
                     tool_call_id=tool_call_id,
                     approved=approved,
                     arguments=arguments,
-                    reason=reason
+                    reason=reason,
                 )
-                
-                logger.info(f"Approval response handled: result={sanitize_for_logging(result)}")
+
+                logger.info(
+                    f"Approval response handled: result={sanitize_for_logging(result)}"
+                )
                 # No response needed - the approval will unblock the waiting tool execution
 
             else:
-                logger.warning(f"Unknown message type: {sanitize_for_logging(message_type)}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Unknown message type: {sanitize_for_logging(message_type)}"
-                })
-                
+                logger.warning(
+                    f"Unknown message type: {sanitize_for_logging(message_type)}"
+                )
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": f"Unknown message type: {sanitize_for_logging(message_type)}",
+                    }
+                )
+
     except WebSocketDisconnect:
         chat_service.end_session(session_id)
         logger.info(f"WebSocket connection closed for session {session_id}")
@@ -342,4 +361,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -13,7 +13,9 @@ from typing import Any, Dict, List, Optional, Callable, Awaitable
 from domain.messages.models import ToolCall, ToolResult
 from interfaces.llm import LLMResponse
 from core.capabilities import create_download_url
-from .notification_utils import _sanitize_filename_value  # reuse same filename sanitizer for UI args
+from .notification_utils import (
+    _sanitize_filename_value,
+)  # reuse same filename sanitizer for UI args
 from ..approval_manager import get_approval_manager
 
 logger = logging.getLogger(__name__)
@@ -31,20 +33,22 @@ async def execute_tools_workflow(
     llm_caller,
     prompt_provider,
     update_callback: Optional[UpdateCallback] = None,
-    config_manager=None
+    config_manager=None,
 ) -> tuple[str, List[ToolResult]]:
     """
     Execute the complete tools workflow: calls -> results -> synthesis.
-    
+
     Pure function that coordinates tool execution without maintaining state.
     """
     logger.info("Step 4: Entering execute_tools_workflow")
     # Add assistant message with tool calls
-    messages.append({
-        "role": "assistant",
-        "content": llm_response.content,
-        "tool_calls": llm_response.tool_calls
-    })
+    messages.append(
+        {
+            "role": "assistant",
+            "content": llm_response.content,
+            "tool_calls": llm_response.tool_calls,
+        }
+    )
 
     # Execute all tool calls
     tool_results: List[ToolResult] = []
@@ -54,17 +58,19 @@ async def execute_tools_workflow(
             session_context=session_context,
             tool_manager=tool_manager,
             update_callback=update_callback,
-            config_manager=config_manager
+            config_manager=config_manager,
         )
         tool_results.append(result)
 
     # Add tool results to messages
     for result in tool_results:
-        messages.append({
-            "role": "tool",
-            "content": result.content,
-            "tool_call_id": result.tool_call_id
-        })
+        messages.append(
+            {
+                "role": "tool",
+                "content": result.content,
+                "tool_call_id": result.tool_call_id,
+            }
+        )
 
     # Determine if synthesis is needed
     final_response = await handle_synthesis_decision(
@@ -74,7 +80,7 @@ async def execute_tools_workflow(
         session_context=session_context,
         llm_caller=llm_caller,
         prompt_provider=prompt_provider,
-        update_callback=update_callback
+        update_callback=update_callback,
     )
 
     return final_response, tool_results
@@ -103,14 +109,14 @@ def requires_approval(tool_name: str, config_manager) -> tuple[bool, bool, bool]
     """
     if config_manager is None:
         return (True, True, False)  # Default to requiring user-level approval
-    
+
     try:
         # Global override: force approval for all tools (admin-enforced)
         app_settings = getattr(config_manager, "app_settings", None)
         force_flag = False
         if app_settings is not None:
             raw_force = getattr(app_settings, "force_tool_approval_globally", False)
-            force_flag = (isinstance(raw_force, bool) and raw_force is True)
+            force_flag = isinstance(raw_force, bool) and raw_force is True
         if force_flag:
             return (True, True, True)
 
@@ -127,7 +133,7 @@ def requires_approval(tool_name: str, config_manager) -> tuple[bool, bool, bool]
         # Default requirement: user-level regardless of default setting
         # Users can always toggle auto-approve via inline UI unless admin explicitly requires it
         return (True, True, False)
-    
+
     except Exception as e:
         logger.warning(f"Error checking approval requirements for {tool_name}: {e}")
     return (True, True, False)  # Default to user-level approval on error
@@ -136,18 +142,18 @@ def requires_approval(tool_name: str, config_manager) -> tuple[bool, bool, bool]
 def tool_accepts_username(tool_name: str, tool_manager) -> bool:
     """
     Check if a tool accepts a username parameter by examining its schema.
-    
+
     Returns True if the tool schema defines a 'username' parameter, False otherwise.
     """
     if not tool_name or not tool_manager:
         return False
-    
+
     try:
         # Get the tool schema for this specific tool
         tools_schema = tool_manager.get_tools_schema([tool_name])
         if not tools_schema:
             return False
-            
+
         # Find the schema for our specific tool
         for tool_schema in tools_schema:
             if tool_schema.get("function", {}).get("name") == tool_name:
@@ -155,7 +161,7 @@ def tool_accepts_username(tool_name: str, tool_manager) -> bool:
                 parameters = tool_schema.get("function", {}).get("parameters", {})
                 properties = parameters.get("properties", {})
                 return "username" in properties
-        
+
         return False
     except Exception as e:
         logger.warning(f"Could not determine if tool {tool_name} accepts username: {e}")
@@ -167,22 +173,24 @@ async def execute_single_tool(
     session_context: Dict[str, Any],
     tool_manager,
     update_callback: Optional[UpdateCallback] = None,
-    config_manager=None
+    config_manager=None,
 ) -> ToolResult:
     """
     Execute a single tool with argument preparation and error handling.
-    
+
     Pure function that doesn't maintain state - all context passed as parameters.
     """
     logger.info("Step 5: Entering execute_single_tool")
     from . import notification_utils
-    
+
     try:
         # Prepare arguments with injections (username, filename URL mapping)
         parsed_args = prepare_tool_arguments(tool_call, session_context, tool_manager)
 
         # Filter to only schema-declared parameters so MCP tools don't receive extras
-        filtered_args = _filter_args_to_schema(parsed_args, tool_call.function.name, tool_manager)
+        filtered_args = _filter_args_to_schema(
+            parsed_args, tool_call.function.name, tool_manager
+        )
 
         # Sanitize arguments for UI (hide tokens in URLs, etc.)
         display_args = _sanitize_args_for_ui(dict(filtered_args))
@@ -192,39 +200,44 @@ async def execute_single_tool(
         allow_edit = True
         admin_required = False
         if config_manager:
-            needs_approval, allow_edit, admin_required = requires_approval(tool_call.function.name, config_manager)
+            needs_approval, allow_edit, admin_required = requires_approval(
+                tool_call.function.name, config_manager
+            )
         else:
             # No config manager means user-level approval by default
             needs_approval = True
             allow_edit = True
             admin_required = False
-        
+
         # Track if arguments were edited (for LLM context)
         arguments_were_edited = False
-        original_display_args = dict(display_args) if isinstance(display_args, dict) else display_args
+        original_display_args = (
+            dict(display_args) if isinstance(display_args, dict) else display_args
+        )
 
         # If approval is required, request it from the user
         if needs_approval:
-            logger.info(f"Tool {tool_call.function.name} requires approval (admin_required={admin_required})")
+            logger.info(
+                f"Tool {tool_call.function.name} requires approval (admin_required={admin_required})"
+            )
 
             # Send approval request to frontend
             if update_callback:
-                await update_callback({
-                    "type": "tool_approval_request",
-                    "tool_call_id": tool_call.id,
-                    "tool_name": tool_call.function.name,
-                    "arguments": display_args,
-                    "allow_edit": allow_edit,
-                    "admin_required": admin_required
-                })
+                await update_callback(
+                    {
+                        "type": "tool_approval_request",
+                        "tool_call_id": tool_call.id,
+                        "tool_name": tool_call.function.name,
+                        "arguments": display_args,
+                        "allow_edit": allow_edit,
+                        "admin_required": admin_required,
+                    }
+                )
 
             # Wait for approval response
             approval_manager = get_approval_manager()
             request = approval_manager.create_approval_request(
-                tool_call.id,
-                tool_call.function.name,
-                filtered_args,
-                allow_edit
+                tool_call.id, tool_call.function.name, filtered_args, allow_edit
             )
 
             try:
@@ -234,12 +247,14 @@ async def execute_single_tool(
                 if not response["approved"]:
                     # Tool was rejected
                     reason = response.get("reason", "User rejected the tool call")
-                    logger.info(f"Tool {tool_call.function.name} rejected by user: {reason}")
+                    logger.info(
+                        f"Tool {tool_call.function.name} rejected by user: {reason}"
+                    )
                     return ToolResult(
                         tool_call_id=tool_call.id,
                         content=f"Tool execution rejected by user: {reason}",
                         success=False,
-                        error=reason
+                        error=reason,
                     )
 
                 # Use potentially edited arguments
@@ -247,14 +262,20 @@ async def execute_single_tool(
                     edited_args = response["arguments"]
                     # Check if arguments actually changed by comparing with what we sent (display_args)
                     # Use json comparison to avoid false positives from dict ordering
-                    if json.dumps(edited_args, sort_keys=True) != json.dumps(original_display_args, sort_keys=True):
+                    if json.dumps(edited_args, sort_keys=True) != json.dumps(
+                        original_display_args, sort_keys=True
+                    ):
                         arguments_were_edited = True
                         filtered_args = edited_args
-                        logger.info(f"User edited arguments for tool {tool_call.function.name}")
+                        logger.info(
+                            f"User edited arguments for tool {tool_call.function.name}"
+                        )
                     else:
                         # No actual changes, but response included arguments - keep original filtered_args
-                        logger.debug(f"Arguments returned unchanged for tool {tool_call.function.name}")
-                
+                        logger.debug(
+                            f"Arguments returned unchanged for tool {tool_call.function.name}"
+                        )
+
             except asyncio.TimeoutError:
                 approval_manager.cleanup_request(tool_call.id)
                 logger.warning(f"Approval timeout for tool {tool_call.function.name}")
@@ -262,17 +283,17 @@ async def execute_single_tool(
                     tool_call_id=tool_call.id,
                     content="Tool execution timed out waiting for user approval",
                     success=False,
-                    error="Approval timeout"
+                    error="Approval timeout",
                 )
 
         # Send tool start notification with sanitized args
-        await notification_utils.notify_tool_start(tool_call, display_args, update_callback)
+        await notification_utils.notify_tool_start(
+            tool_call, display_args, update_callback
+        )
 
         # Create tool call object and execute with filtered args only
         tool_call_obj = ToolCall(
-            id=tool_call.id,
-            name=tool_call.function.name,
-            arguments=filtered_args
+            id=tool_call.id, name=tool_call.function.name, arguments=filtered_args
         )
 
         result = await tool_manager.execute_tool(
@@ -282,7 +303,7 @@ async def execute_single_tool(
                 "user_email": session_context.get("user_email"),
                 # pass update callback so MCP client can emit progress
                 "update_callback": update_callback,
-            }
+            },
         )
 
         # If arguments were edited, prepend a note to the result for LLM context
@@ -300,33 +321,39 @@ async def execute_single_tool(
                 result.content = edit_note + str(result.content)
 
         # Send tool complete notification
-        await notification_utils.notify_tool_complete(tool_call, result, parsed_args, update_callback)
+        await notification_utils.notify_tool_complete(
+            tool_call, result, parsed_args, update_callback
+        )
 
         return result
 
     except Exception as e:
         logger.error(f"Error executing tool {tool_call.function.name}: {e}")
-        
+
         # Send tool error notification
         await notification_utils.notify_tool_error(tool_call, str(e), update_callback)
-        
+
         # Return error result instead of raising
         return ToolResult(
             tool_call_id=tool_call.id,
             content=f"Tool execution failed: {str(e)}",
             success=False,
-            error=str(e)
+            error=str(e),
         )
 
 
-def _filter_args_to_schema(parsed_args: Dict[str, Any], tool_name: str, tool_manager) -> Dict[str, Any]:
+def _filter_args_to_schema(
+    parsed_args: Dict[str, Any], tool_name: str, tool_manager
+) -> Dict[str, Any]:
     """Return only arguments that are explicitly declared in the tool schema.
 
     If schema can't be retrieved, fall back to dropping known injected extras
     like original_* and file_url(s) to avoid Pydantic validation errors.
     """
     try:
-        tools_schema = tool_manager.get_tools_schema([tool_name]) if tool_manager else []
+        tools_schema = (
+            tool_manager.get_tools_schema([tool_name]) if tool_manager else []
+        )
         allowed: set[str] = set()
         for tool_schema in tools_schema or []:
             if tool_schema.get("function", {}).get("name") == tool_name:
@@ -344,8 +371,11 @@ def _filter_args_to_schema(parsed_args: Dict[str, Any], tool_name: str, tool_man
     # Conservative fallback: drop common injected extras if schema unavailable
     drop_prefixes = ("original_",)
     drop_keys = {"file_url", "file_urls"}
-    return {k: v for k, v in (parsed_args or {}).items()
-            if not any(k.startswith(p) for p in drop_prefixes) and k not in drop_keys}
+    return {
+        k: v
+        for k, v in (parsed_args or {}).items()
+        if not any(k.startswith(p) for p in drop_prefixes) and k not in drop_keys
+    }
 
 
 def _sanitize_args_for_ui(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -358,7 +388,9 @@ def _sanitize_args_for_ui(args: Dict[str, Any]) -> Dict[str, Any]:
 
     # Single filename
     if isinstance(cleaned.get("filename"), str):
-        cleaned["filename"] = _sanitize_filename_value(cleaned["filename"])  # basename only
+        cleaned["filename"] = _sanitize_filename_value(
+            cleaned["filename"]
+        )  # basename only
 
     # Multiple filenames
     if isinstance(cleaned.get("file_names"), list):
@@ -369,7 +401,9 @@ def _sanitize_args_for_ui(args: Dict[str, Any]) -> Dict[str, Any]:
 
     # If a tool schema (unexpectedly) exposes file_url(s), sanitize for display too
     if isinstance(cleaned.get("file_url"), str):
-        cleaned["file_url"] = _sanitize_filename_value(cleaned["file_url"])  # show just name
+        cleaned["file_url"] = _sanitize_filename_value(
+            cleaned["file_url"]
+        )  # show just name
     if isinstance(cleaned.get("file_urls"), list):
         cleaned["file_urls"] = [
             _sanitize_filename_value(x) if isinstance(x, str) else x
@@ -379,10 +413,12 @@ def _sanitize_args_for_ui(args: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned
 
 
-def prepare_tool_arguments(tool_call, session_context: Dict[str, Any], tool_manager=None) -> Dict[str, Any]:
+def prepare_tool_arguments(
+    tool_call, session_context: Dict[str, Any], tool_manager=None
+) -> Dict[str, Any]:
     """
     Process and prepare tool arguments with all injections and transformations.
-    
+
     Pure function that transforms arguments based on context and tool schema.
     """
     logger.info("Step 6: Entering prepare_tool_arguments")
@@ -401,18 +437,26 @@ def prepare_tool_arguments(tool_call, session_context: Dict[str, Any], tool_mana
             except Exception:
                 logger.warning(
                     "Failed to parse tool arguments as JSON for %s, using empty dict. Raw: %r",
-                    getattr(tool_call.function, "name", "<unknown>"), raw_args
+                    getattr(tool_call.function, "name", "<unknown>"),
+                    raw_args,
                 )
                 parsed_args = {}
 
     # Inject username and file URL mappings with schema awareness
-    return inject_context_into_args(parsed_args, session_context, tool_call.function.name, tool_manager)
+    return inject_context_into_args(
+        parsed_args, session_context, tool_call.function.name, tool_manager
+    )
 
 
-def inject_context_into_args(parsed_args: Dict[str, Any], session_context: Dict[str, Any], tool_name: str = None, tool_manager=None) -> Dict[str, Any]:
+def inject_context_into_args(
+    parsed_args: Dict[str, Any],
+    session_context: Dict[str, Any],
+    tool_name: str = None,
+    tool_manager=None,
+) -> Dict[str, Any]:
     """
     Inject username and file URL mappings into tool arguments.
-    
+
     Pure function that adds context without side effects.
     Only injects username if the tool schema defines a username parameter.
     """
@@ -423,12 +467,14 @@ def inject_context_into_args(parsed_args: Dict[str, Any], session_context: Dict[
         # Inject username. Prefer schema-aware injection; if schema unavailable,
         # include username by default to support tools that expect it.
         user_email = session_context.get("user_email")
-        if user_email and (not tool_manager or tool_accepts_username(tool_name, tool_manager)):
+        if user_email and (
+            not tool_manager or tool_accepts_username(tool_name, tool_manager)
+        ):
             parsed_args["username"] = user_email
 
         # Provide URL hints for filename/file_names fields
         files_ctx = session_context.get("files", {})
-        
+
         def to_url(key: str) -> str:
             # Use tokenized URL so tools can fetch without cookies
             return create_download_url(key, user_email)
@@ -476,15 +522,17 @@ async def handle_synthesis_decision(
     session_context: Dict[str, Any],
     llm_caller,
     prompt_provider,
-    update_callback: Optional[UpdateCallback] = None
+    update_callback: Optional[UpdateCallback] = None,
 ) -> str:
     """
     Decide whether synthesis is needed and execute accordingly.
-    
+
     Pure function that doesn't maintain state.
     """
     # Check if we have only canvas tools
-    canvas_tool_calls = [tc for tc in llm_response.tool_calls if tc.function.name == "canvas_canvas"]
+    canvas_tool_calls = [
+        tc for tc in llm_response.tool_calls if tc.function.name == "canvas_canvas"
+    ]
     has_only_canvas_tools = len(canvas_tool_calls) == len(llm_response.tool_calls)
 
     if has_only_canvas_tools:
@@ -500,7 +548,7 @@ async def handle_synthesis_decision(
                 "Available session files (updated after tool runs):\n"
                 f"{files_manifest['content'].split('Available session files:')[1].split('(You can ask')[0].strip()}\n\n"
                 "(You can ask to open or analyze any of these by name.)"
-            )
+            ),
         }
         messages.append(updated_manifest)
 
@@ -510,7 +558,7 @@ async def handle_synthesis_decision(
         messages=messages,
         llm_caller=llm_caller,
         prompt_provider=prompt_provider,
-        update_callback=update_callback
+        update_callback=update_callback,
     )
 
 
@@ -519,11 +567,11 @@ async def synthesize_tool_results(
     messages: List[Dict[str, Any]],
     llm_caller,
     prompt_provider,
-    update_callback: Optional[UpdateCallback] = None
+    update_callback: Optional[UpdateCallback] = None,
 ) -> str:
     """
     Prepare augmented messages with synthesis prompt and obtain final answer.
-    
+
     Pure function that coordinates LLM call for synthesis.
     """
     # Extract latest user question (walk backwards)
@@ -535,14 +583,13 @@ async def synthesize_tool_results(
 
     prompt_text = None
     if prompt_provider:
-        prompt_text = prompt_provider.get_tool_synthesis_prompt(user_question or "the user's last request")
+        prompt_text = prompt_provider.get_tool_synthesis_prompt(
+            user_question or "the user's last request"
+        )
 
     synthesis_messages = list(messages)
     if prompt_text:
-        synthesis_messages.append({
-            "role": "system",
-            "content": prompt_text
-        })
+        synthesis_messages.append({"role": "system", "content": prompt_text})
     else:
         logger.info("Proceeding without dedicated tool synthesis prompt (fallback)")
 
@@ -558,7 +605,7 @@ async def synthesize_tool_results(
 def build_files_manifest(session_context: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """
     Build ephemeral files manifest for LLM context.
-    
+
     Pure function that creates manifest from session context.
     """
     files_ctx = session_context.get("files", {})
@@ -573,5 +620,5 @@ def build_files_manifest(session_context: Dict[str, Any]) -> Optional[Dict[str, 
             f"{file_list}\n\n"
             "(You can ask to open or analyze any of these by name. "
             "Large contents are not fully in this prompt unless user or tools provided excerpts.)"
-        )
+        ),
     }

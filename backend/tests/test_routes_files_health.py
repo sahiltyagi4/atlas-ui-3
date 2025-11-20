@@ -6,6 +6,7 @@ from main import app
 def test_files_health_endpoint(monkeypatch):
     # Stub out S3 client call to avoid external dependency sensitivity
     from infrastructure.app_factory import app_factory
+
     s3 = app_factory.get_file_storage()
     # No network call is made by files/health; but ensure attributes exist
     assert hasattr(s3, "endpoint_url")

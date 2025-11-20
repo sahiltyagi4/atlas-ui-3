@@ -9,9 +9,10 @@ from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
-_CONTROL_CHARS_RE = re.compile(r'[\x00-\x1f\x7f-\x9f]')
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 # Matches Unicode line separators (LINE SEPARATOR and PARAGRAPH SEPARATOR)
-_UNICODE_NEWLINES_RE = re.compile(r'[\u2028\u2029]')
+_UNICODE_NEWLINES_RE = re.compile(r"[\u2028\u2029]")
+
 
 def sanitize_for_logging(value: Any) -> str:
     """
@@ -41,15 +42,14 @@ def sanitize_for_logging(value: Any) -> str:
         '123'
     """
     if value is None:
-        return ''
+        return ""
     if not isinstance(value, str):
         value = str(value)
-    value = _CONTROL_CHARS_RE.sub('', value)
-    value = _UNICODE_NEWLINES_RE.sub('', value)
+    value = _CONTROL_CHARS_RE.sub("", value)
+    value = _UNICODE_NEWLINES_RE.sub("", value)
     return value
-
 
 
 async def get_current_user(request: Request) -> str:
     """Get current user from request state (set by middleware)."""
-    return getattr(request.state, 'user_email', 'test@test.com')
+    return getattr(request.state, "user_email", "test@test.com")

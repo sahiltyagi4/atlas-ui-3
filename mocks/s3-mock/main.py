@@ -8,11 +8,20 @@ from fastapi.responses import StreamingResponse
 import uvicorn
 
 from storage import (
-    ensure_bucket, load_object, save_object, delete_object,
-    list_objects, get_tags, set_tags, load_meta
+    ensure_bucket,
+    load_object,
+    save_object,
+    delete_object,
+    list_objects,
+    get_tags,
+    set_tags,
+    load_meta,
 )
 from s3_xml import (
-    create_list_objects_xml, create_tagging_xml, parse_tagging_xml, create_error_xml
+    create_list_objects_xml,
+    create_tagging_xml,
+    parse_tagging_xml,
+    create_error_xml,
 )
 
 app = FastAPI(title="S3 Mock Server")
@@ -29,6 +38,7 @@ async def log_requests(request: Request, call_next):
 def get_app():
     """Get the FastAPI app instance for testing."""
     return app
+
 
 # Configuration
 MOCK_S3_ROOT = Path(os.getenv("MOCK_S3_ROOT", "minio-data/chatui"))
@@ -59,12 +69,17 @@ def add_metadata_headers(response: Response, metadata: Dict[str, str]):
 async def put_object(bucket: str, key: str, request: Request):
     """PUT Object endpoint."""
     # Check if this is a tagging request with XML body
-    if request.query_params.get("tagging") and request.headers.get("content-type") == "application/xml":
+    if (
+        request.query_params.get("tagging")
+        and request.headers.get("content-type") == "application/xml"
+    ):
         bucket_root = get_bucket_root(bucket)
 
         # Check if object exists
         if load_meta(bucket_root, key) is None:
-            error_xml = create_error_xml("NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}")
+            error_xml = create_error_xml(
+                "NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}"
+            )
             raise HTTPException(status_code=404, detail=error_xml)
 
         try:
@@ -74,7 +89,11 @@ async def put_object(bucket: str, key: str, request: Request):
             set_tags(bucket_root, key, tags)
             return Response(status_code=200)
         except ValueError:
-            error_xml = create_error_xml("MalformedXML", "The XML you provided was not well-formed or did not validate against the published schema.", f"/{bucket}/{key}?tagging")
+            error_xml = create_error_xml(
+                "MalformedXML",
+                "The XML you provided was not well-formed or did not validate against the published schema.",
+                f"/{bucket}/{key}?tagging",
+            )
             raise HTTPException(status_code=400, detail=error_xml)
 
     # Regular object PUT
@@ -119,8 +138,12 @@ async def get_object(bucket: str, key: str, request: Request):
     if request.query_params.get("tagging"):
         # Check if object exists
         if load_meta(bucket_root, key) is None:
-            error_xml = create_error_xml("NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}")
-            raise HTTPException(status_code=404, detail=error_xml, media_type="application/xml")
+            error_xml = create_error_xml(
+                "NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}"
+            )
+            raise HTTPException(
+                status_code=404, detail=error_xml, media_type="application/xml"
+            )
 
         tags = get_tags(bucket_root, key)
         xml_response = create_tagging_xml(tags)
@@ -129,7 +152,9 @@ async def get_object(bucket: str, key: str, request: Request):
     # Regular object GET
     result = load_object(bucket_root, key)
     if result is None:
-        error_xml = create_error_xml("NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}")
+        error_xml = create_error_xml(
+            "NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}"
+        )
         raise HTTPException(status_code=404, detail=error_xml)
 
     data, meta = result
@@ -138,9 +163,13 @@ async def get_object(bucket: str, key: str, request: Request):
     def iter_data():
         yield data
 
-    response = StreamingResponse(iter_data(), media_type=meta.get("content_type", "application/octet-stream"))
+    response = StreamingResponse(
+        iter_data(), media_type=meta.get("content_type", "application/octet-stream")
+    )
     response.headers["ETag"] = f'"{meta["etag"]}"'
-    response.headers["Content-Type"] = meta.get("content_type", "application/octet-stream")
+    response.headers["Content-Type"] = meta.get(
+        "content_type", "application/octet-stream"
+    )
 
     # Add metadata headers
     add_metadata_headers(response, meta.get("metadata", {}))
@@ -154,14 +183,18 @@ async def head_object(bucket: str, key: str):
     bucket_root = get_bucket_root(bucket)
     result = load_object(bucket_root, key)
     if result is None:
-        error_xml = create_error_xml("NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}")
+        error_xml = create_error_xml(
+            "NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}"
+        )
         raise HTTPException(status_code=404, detail=error_xml)
 
     data, meta = result
 
     response = Response(status_code=200)
     response.headers["ETag"] = f'"{meta["etag"]}"'
-    response.headers["Content-Type"] = meta.get("content_type", "application/octet-stream")
+    response.headers["Content-Type"] = meta.get(
+        "content_type", "application/octet-stream"
+    )
 
     # Add metadata headers
     add_metadata_headers(response, meta.get("metadata", {}))
@@ -175,7 +208,9 @@ async def delete_object_endpoint(bucket: str, key: str):
     bucket_root = get_bucket_root(bucket)
     deleted = delete_object(bucket_root, key)
     if not deleted:
-        error_xml = create_error_xml("NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}")
+        error_xml = create_error_xml(
+            "NoSuchKey", "The specified key does not exist.", f"/{bucket}/{key}"
+        )
         raise HTTPException(status_code=404, detail=error_xml)
 
     return Response(status_code=204)
@@ -188,7 +223,9 @@ async def list_objects_v2(bucket: str, request: Request):
 
     # Check if bucket exists (has any objects)
     if not any(bucket_root.rglob("*")):
-        error_xml = create_error_xml("NoSuchBucket", "The specified bucket does not exist.", f"/{bucket}")
+        error_xml = create_error_xml(
+            "NoSuchBucket", "The specified bucket does not exist.", f"/{bucket}"
+        )
         raise HTTPException(status_code=404, detail=error_xml)
 
     prefix = request.query_params.get("prefix", "")
@@ -200,12 +237,15 @@ async def list_objects_v2(bucket: str, request: Request):
     return Response(content=xml_response, media_type="application/xml")
 
 
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions with XML error responses."""
     if exc.detail and exc.detail.startswith("<Error>"):
-        return Response(content=exc.detail, media_type="application/xml", status_code=exc.status_code)
+        return Response(
+            content=exc.detail,
+            media_type="application/xml",
+            status_code=exc.status_code,
+        )
     return Response(content=str(exc.detail), status_code=exc.status_code)
 
 

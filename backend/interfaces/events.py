@@ -6,10 +6,10 @@ from typing import Protocol, Any, Dict
 class EventPublisher(Protocol):
     """
     Protocol for publishing events to UI/clients.
-    
+
     Provides transport-agnostic interface for sending various update types
     to connected clients (e.g., via WebSocket, SSE, HTTP streaming, etc.).
-    
+
     This interface lives in the interfaces layer to avoid circular dependencies
     and keep the application layer decoupled from infrastructure concerns.
     """
@@ -32,11 +32,7 @@ class EventPublisher(Protocol):
         """Signal that the response is complete."""
         pass
 
-    async def publish_agent_update(
-        self,
-        update_type: str,
-        **kwargs: Any
-    ) -> None:
+    async def publish_agent_update(self, update_type: str, **kwargs: Any) -> None:
         """
         Publish an agent-specific update.
 
@@ -46,11 +42,7 @@ class EventPublisher(Protocol):
         """
         pass
 
-    async def publish_tool_start(
-        self,
-        tool_name: str,
-        **kwargs: Any
-    ) -> None:
+    async def publish_tool_start(self, tool_name: str, **kwargs: Any) -> None:
         """
         Publish notification that a tool is starting.
 
@@ -61,10 +53,7 @@ class EventPublisher(Protocol):
         pass
 
     async def publish_tool_complete(
-        self,
-        tool_name: str,
-        result: Any,
-        **kwargs: Any
+        self, tool_name: str, result: Any, **kwargs: Any
     ) -> None:
         """
         Publish notification that a tool has completed.
@@ -76,10 +65,7 @@ class EventPublisher(Protocol):
         """
         pass
 
-    async def publish_files_update(
-        self,
-        files: Dict[str, Any]
-    ) -> None:
+    async def publish_files_update(self, files: Dict[str, Any]) -> None:
         """
         Publish update about session files.
 
@@ -89,10 +75,7 @@ class EventPublisher(Protocol):
         pass
 
     async def publish_canvas_content(
-        self,
-        content: str,
-        content_type: str = "text/html",
-        **kwargs: Any
+        self, content: str, content_type: str = "text/html", **kwargs: Any
     ) -> None:
         """
         Publish content for canvas display.

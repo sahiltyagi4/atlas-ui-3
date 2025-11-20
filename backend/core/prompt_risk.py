@@ -23,6 +23,7 @@ def _get_thresholds() -> Dict[str, int]:
     """Get prompt injection risk thresholds from config manager."""
     try:
         from modules.config import config_manager
+
         settings = config_manager.app_settings
         return {
             "low": settings.pi_threshold_low,
@@ -38,7 +39,9 @@ def _get_thresholds() -> Dict[str, int]:
         }
 
 
-def calculate_prompt_injection_risk(message: str, *, mode: str = "general") -> Dict[str, object]:
+def calculate_prompt_injection_risk(
+    message: str, *, mode: str = "general"
+) -> Dict[str, object]:
     """
     Calculate a heuristic risk score for prompt injection attempts.
 
@@ -52,7 +55,10 @@ def calculate_prompt_injection_risk(message: str, *, mode: str = "general") -> D
 
     # 1) Suspicious patterns
     patterns = {
-        "override_instructions": (r"ignore\s+(previous|all|everything|above|prior)", 40),
+        "override_instructions": (
+            r"ignore\s+(previous|all|everything|above|prior)",
+            40,
+        ),
         "disregard": (r"disregard\s+(previous|all|everything|above|prior)", 40),
         "new_instructions": (r"new\s+instructions?\s*:\s*", 35),
         "system_role": (r"\b(system|assistant|user)\s*:\s*", 30),
@@ -91,7 +97,9 @@ def calculate_prompt_injection_risk(message: str, *, mode: str = "general") -> D
 
     # Excessive caps
     if len(message or "") > 20:
-        caps_ratio = sum(1 for c in (message or "") if c.isupper()) / max(1, len(message or ""))
+        caps_ratio = sum(1 for c in (message or "") if c.isupper()) / max(
+            1, len(message or "")
+        )
         if caps_ratio > 0.3:
             score += 15
             triggers.append("excessive_caps")
@@ -105,7 +113,9 @@ def calculate_prompt_injection_risk(message: str, *, mode: str = "general") -> D
         score += 25
         triggers.append("fake_conversation")
 
-    if (len(message or "") > 50) and re.search(r"<[^>]+>.*</[^>]+>|[{}\[\]]", message or ""):
+    if (len(message or "") > 50) and re.search(
+        r"<[^>]+>.*</[^>]+>|[{}\[\]]", message or ""
+    ):
         score += 20
         triggers.append("structured_injection")
 
@@ -140,7 +150,11 @@ def calculate_prompt_injection_risk(message: str, *, mode: str = "general") -> D
 def _detect_encoding(text: str) -> bool:
     clean = re.sub(r"\s", "", text or "")
     # Base64-like
-    if len(clean) > 20 and len(clean) % 4 == 0 and re.match(r"^[A-Za-z0-9+/=]+$", clean or ""):
+    if (
+        len(clean) > 20
+        and len(clean) % 4 == 0
+        and re.match(r"^[A-Za-z0-9+/=]+$", clean or "")
+    ):
         try:
             base64.b64decode(clean, validate=True)
             return True
@@ -170,7 +184,16 @@ def _calculate_entropy(text: str) -> float:
     return ent
 
 
-def log_high_risk_event(*, source: str, user: Optional[str], content: str, score: int, risk_level: str, triggers: List[str], extra: Optional[Dict[str, object]] = None) -> None:
+def log_high_risk_event(
+    *,
+    source: str,
+    user: Optional[str],
+    content: str,
+    score: int,
+    risk_level: str,
+    triggers: List[str],
+    extra: Optional[Dict[str, object]] = None,
+) -> None:
     """Append a JSONL record for medium/high events to logs/security_high_risk.jsonl."""
     try:
         # Only log medium/high
@@ -191,7 +214,7 @@ def log_high_risk_event(*, source: str, user: Optional[str], content: str, score
         if extra:
             record.update(extra)
         # include a small snippet only
-        snippet = (content or "")
+        snippet = content or ""
         if len(snippet) > 240:
             snippet = snippet[:240] + "…"
         record["snippet"] = snippet

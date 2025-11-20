@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 def build_session_context(session: Session) -> Dict[str, Any]:
     """
     Build session context dictionary from session.
-    
+
     Args:
         session: Chat session
-        
+
     Returns:
         Session context dictionary
     """
@@ -23,14 +23,14 @@ def build_session_context(session: Session) -> Dict[str, Any]:
         "session_id": session.id,
         "user_email": session.user_email,
         "files": session.context.get("files", {}),
-        **session.context
+        **session.context,
     }
 
 
 class MessageBuilder:
     """
     Service that builds complete message arrays for LLM calls.
-    
+
     Combines conversation history with files manifest and other context.
     """
 
@@ -56,12 +56,18 @@ class MessageBuilder:
         if include_files_manifest:
             session_context = build_session_context(session)
             files_in_context = session_context.get("files", {})
-            logger.debug(f"Session has {len(files_in_context)} files: {list(files_in_context.keys())}")
+            logger.debug(
+                f"Session has {len(files_in_context)} files: {list(files_in_context.keys())}"
+            )
             files_manifest = file_utils.build_files_manifest(session_context)
             if files_manifest:
-                logger.debug(f"Adding files manifest to messages: {files_manifest['content'][:100]}")
+                logger.debug(
+                    f"Adding files manifest to messages: {files_manifest['content'][:100]}"
+                )
                 messages.append(files_manifest)
             else:
-                logger.warning("No files manifest generated despite include_files_manifest=True")
+                logger.warning(
+                    "No files manifest generated despite include_files_manifest=True"
+                )
 
         return messages

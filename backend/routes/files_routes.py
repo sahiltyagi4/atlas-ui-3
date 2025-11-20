@@ -62,16 +62,19 @@ async def files_health_check():
         "status": "healthy",
         "service": "files-api",
         "s3_config": {
-            "endpoint": s3_client.endpoint_url if hasattr(s3_client, 'endpoint_url') else "unknown",
-            "bucket": s3_client.bucket_name if hasattr(s3_client, 'bucket_name') else "unknown"
-        }
+            "endpoint": s3_client.endpoint_url
+            if hasattr(s3_client, "endpoint_url")
+            else "unknown",
+            "bucket": s3_client.bucket_name
+            if hasattr(s3_client, "bucket_name")
+            else "unknown",
+        },
     }
 
 
 @router.post("/files", response_model=FileResponse)
 async def upload_file(
-    request: FileUploadRequest,
-    current_user: str = Depends(get_current_user)
+    request: FileUploadRequest, current_user: str = Depends(get_current_user)
 ) -> FileResponse:
     """Upload a file to S3 storage."""
     # Validate base64 content size (configurable limit to prevent abuse)
@@ -82,7 +85,10 @@ async def upload_file(
 
     max_size = 250 * 1024 * 1024  # 250MB default (configurable)
     if content_size > max_size:
-        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {max_size // (1024 * 1024)}MB",
+        )
 
     try:
         s3_client = app_factory.get_file_storage()
@@ -92,11 +98,11 @@ async def upload_file(
             content_base64=request.content_base64,
             content_type=request.content_type,
             tags=request.tags,
-            source_type=request.tags.get("source", "user") if request.tags else "user"
+            source_type=request.tags.get("source", "user") if request.tags else "user",
         )
-        
+
         return FileResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error uploading file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -104,19 +110,18 @@ async def upload_file(
 
 @router.get("/files/{file_key}", response_model=FileContentResponse)
 async def get_file(
-    file_key: str,
-    current_user: str = Depends(get_current_user)
+    file_key: str, current_user: str = Depends(get_current_user)
 ) -> FileContentResponse:
     """Get a file from S3 storage."""
     try:
         s3_client = app_factory.get_file_storage()
         result = await s3_client.get_file(current_user, file_key)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="File not found")
-            
+
         return FileContentResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -130,28 +135,30 @@ async def get_file(
 async def list_files(
     current_user: str = Depends(get_current_user),
     file_type: Optional[str] = None,
-    limit: int = 100
+    limit: int = 100,
 ) -> List[FileResponse]:
     """List files for the current user."""
     try:
         s3_client = app_factory.get_file_storage()
         result = await s3_client.list_files(
-            user_email=current_user,
-            file_type=file_type,
-            limit=limit
+            user_email=current_user, file_type=file_type, limit=limit
         )
 
         # Convert any datetime objects to ISO format strings for pydantic validation
         processed_files = []
         for file_data in result:
             processed_file = file_data.copy()
-            if not isinstance(processed_file.get('last_modified'), str):
+            if not isinstance(processed_file.get("last_modified"), str):
                 # Convert datetime to ISO format string if it's not already a string
                 try:
-                    processed_file['last_modified'] = processed_file['last_modified'].isoformat()
+                    processed_file["last_modified"] = processed_file[
+                        "last_modified"
+                    ].isoformat()
                 except AttributeError:
                     # If it's not a datetime object, convert to string
-                    processed_file['last_modified'] = str(processed_file['last_modified'])
+                    processed_file["last_modified"] = str(
+                        processed_file["last_modified"]
+                    )
             processed_files.append(processed_file)
 
         return [FileResponse(**file_data) for file_data in processed_files]
@@ -163,19 +170,18 @@ async def list_files(
 
 @router.delete("/files/{file_key}")
 async def delete_file(
-    file_key: str,
-    current_user: str = Depends(get_current_user)
+    file_key: str, current_user: str = Depends(get_current_user)
 ) -> Dict[str, str]:
     """Delete a file from S3 storage."""
     try:
         s3_client = app_factory.get_file_storage()
         success = await s3_client.delete_file(current_user, file_key)
-        
+
         if not success:
             raise HTTPException(status_code=404, detail="File not found")
-            
+
         return {"message": "File deleted successfully", "key": file_key}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -187,19 +193,18 @@ async def delete_file(
 
 @router.get("/users/{user_email}/files/stats")
 async def get_user_file_stats(
-    user_email: str,
-    current_user: str = Depends(get_current_user)
+    user_email: str, current_user: str = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """Get file statistics for a user."""
     # Users can only see their own stats
     if current_user != user_email:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     try:
         s3_client = app_factory.get_file_storage()
         result = await s3_client.get_user_stats(current_user)
         return result
-        
+
     except Exception as e:
         logger.error(f"Error getting user stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
@@ -208,8 +213,10 @@ async def get_user_file_stats(
 @router.get("/files/download/{file_key:path}")
 async def download_file(
     file_key: str,
-    token: str | None = Query(default=None, description="Capability token for headless access"),
-    current_user: str = Depends(get_current_user)
+    token: str | None = Query(
+        default=None, description="Capability token for headless access"
+    ),
+    current_user: str = Depends(get_current_user),
 ):
     """Download a file by key as raw bytes.
 
@@ -231,19 +238,26 @@ async def download_file(
             raise HTTPException(status_code=404, detail="File not found")
 
         try:
-            raw = base64.b64decode(result["content_base64"]) if result.get("content_base64") else b""
+            raw = (
+                base64.b64decode(result["content_base64"])
+                if result.get("content_base64")
+                else b""
+            )
         except Exception:
             raise HTTPException(status_code=500, detail="Corrupted file content")
 
         # Sanitize filename for header safety
-        fn = result.get('filename', 'download') or 'download'
+        fn = result.get("filename", "download") or "download"
         # Remove control characters and dangerous bytes
         fn = re.sub(r"[\r\n\t\x00-\x1f\x7f]", "_", fn)
         # Keep it reasonably short
         if len(fn) > 150:
             fn = fn[:150]
 
-        content_type = result.get("content_type", "application/octet-stream") or "application/octet-stream"
+        content_type = (
+            result.get("content_type", "application/octet-stream")
+            or "application/octet-stream"
+        )
 
         # Default to attachment to reduce XSS risk; allow inline only for a small allowlist
         inline_allow = (
@@ -254,7 +268,7 @@ async def download_file(
         disposition = "inline" if inline_allow else "attachment"
 
         headers = {
-            "Content-Disposition": f"{disposition}; filename=\"{fn}\"",
+            "Content-Disposition": f'{disposition}; filename="{fn}"',
             "X-Content-Type-Options": "nosniff",
         }
 
@@ -265,4 +279,6 @@ async def download_file(
         logger.error(f"Error downloading file: {str(e)}")
         if "Access denied" in str(e):
             raise HTTPException(status_code=403, detail="Access denied")
-        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to download file: {str(e)}"
+        )

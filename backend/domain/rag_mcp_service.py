@@ -27,7 +27,9 @@ class RAGMCPService:
         self.config_manager = config_manager
         self.auth_check_func = auth_check_func
 
-    async def discover_data_sources(self, username: str, user_compliance_level: Optional[str] = None) -> List[str]:
+    async def discover_data_sources(
+        self, username: str, user_compliance_level: Optional[str] = None
+    ) -> List[str]:
         """Discover data sources across authorized MCP RAG servers.
 
         Phase 1 returns a flat list of strings for backward compatibility.
@@ -37,12 +39,18 @@ class RAGMCPService:
         try:
             rag_servers = self.config_manager.rag_mcp_config.servers
             # If these servers aren't in mcp_manager.clients, initialize just these
-            missing = [name for name in rag_servers.keys() if name not in getattr(self.mcp_manager, "clients", {})]
+            missing = [
+                name
+                for name in rag_servers.keys()
+                if name not in getattr(self.mcp_manager, "clients", {})
+            ]
             if missing:
                 # Temporarily extend servers_config with rag servers and initialize them
                 original = dict(getattr(self.mcp_manager, "servers_config", {}))
                 try:
-                    self.mcp_manager.servers_config.update({name: cfg.model_dump() for name, cfg in rag_servers.items()})
+                    self.mcp_manager.servers_config.update(
+                        {name: cfg.model_dump() for name, cfg in rag_servers.items()}
+                    )
                     await self.mcp_manager.initialize_clients()
                     await self.mcp_manager.discover_tools()
                 finally:
@@ -53,12 +61,17 @@ class RAGMCPService:
             pass
         try:
             # Determine servers current user can see
-            authorized_servers: List[str] = await self.mcp_manager.get_authorized_servers(
+            authorized_servers: List[
+                str
+            ] = await self.mcp_manager.get_authorized_servers(
                 username, self.auth_check_func
             )
 
             if not authorized_servers:
-                logger.info("No authorized MCP servers for user %s", sanitize_for_logging(username))
+                logger.info(
+                    "No authorized MCP servers for user %s",
+                    sanitize_for_logging(username),
+                )
                 return []
 
             # --- Compliance Filtering (Step 2) ---
@@ -66,10 +79,13 @@ class RAGMCPService:
                 compliance_mgr = get_compliance_manager()
                 filtered_servers = []
                 for server in authorized_servers:
-                    cfg = (self.mcp_manager.available_tools.get(server) or {}).get("config", {})
+                    cfg = (self.mcp_manager.available_tools.get(server) or {}).get(
+                        "config", {}
+                    )
                     server_compliance_level = cfg.get("compliance_level")
                     if compliance_mgr.is_accessible(
-                        user_level=user_compliance_level, resource_level=server_compliance_level
+                        user_level=user_compliance_level,
+                        resource_level=server_compliance_level,
                     ):
                         filtered_servers.append(server)
                     else:
@@ -81,7 +97,10 @@ class RAGMCPService:
                         )
                 authorized_servers = filtered_servers
                 if not authorized_servers:
-                    logger.info("No authorized MCP servers remain after compliance filtering for user %s", sanitize_for_logging(username))
+                    logger.info(
+                        "No authorized MCP servers remain after compliance filtering for user %s",
+                        sanitize_for_logging(username),
+                    )
                     return []
             # -------------------------------------
 
@@ -90,11 +109,17 @@ class RAGMCPService:
             for server in authorized_servers:
                 server_data = self.mcp_manager.available_tools.get(server)
                 tool_list = (server_data or {}).get("tools", [])
-                if any(getattr(t, "name", None) == "rag_discover_resources" for t in tool_list):
+                if any(
+                    getattr(t, "name", None) == "rag_discover_resources"
+                    for t in tool_list
+                ):
                     servers_with_discovery.append(server)
 
             if not servers_with_discovery:
-                logger.info("No servers implement rag_discover_resources for user %s", sanitize_for_logging(username))
+                logger.info(
+                    "No servers implement rag_discover_resources for user %s",
+                    sanitize_for_logging(username),
+                )
                 return []
 
             # Fan out discovery calls
@@ -136,7 +161,9 @@ class RAGMCPService:
             logger.error("Error during RAG MCP discovery: %s", e, exc_info=True)
             return []
 
-    async def discover_servers(self, username: str, user_compliance_level: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def discover_servers(
+        self, username: str, user_compliance_level: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Return richer per-server discovery structure for UI (rag_servers).
 
         Shape:
@@ -154,11 +181,20 @@ class RAGMCPService:
         # Ensure RAG servers are initialized from rag_mcp_config, without polluting tool inventory
         try:
             rag_cfg_servers = self.config_manager.rag_mcp_config.servers
-            missing = [name for name in rag_cfg_servers.keys() if name not in getattr(self.mcp_manager, "clients", {})]
+            missing = [
+                name
+                for name in rag_cfg_servers.keys()
+                if name not in getattr(self.mcp_manager, "clients", {})
+            ]
             if missing:
                 original = dict(getattr(self.mcp_manager, "servers_config", {}))
                 try:
-                    self.mcp_manager.servers_config.update({name: cfg.model_dump() for name, cfg in rag_cfg_servers.items()})
+                    self.mcp_manager.servers_config.update(
+                        {
+                            name: cfg.model_dump()
+                            for name, cfg in rag_cfg_servers.items()
+                        }
+                    )
                     await self.mcp_manager.initialize_clients()
                     await self.mcp_manager.discover_tools()
                 finally:
@@ -171,7 +207,9 @@ class RAGMCPService:
         try:
             compliance_mgr = get_compliance_manager() if user_compliance_level else None
 
-            authorized_servers: List[str] = await self.mcp_manager.get_authorized_servers(
+            authorized_servers: List[
+                str
+            ] = await self.mcp_manager.get_authorized_servers(
                 username, self.auth_check_func
             )
 
@@ -179,10 +217,13 @@ class RAGMCPService:
             if compliance_mgr:
                 filtered_servers = []
                 for server in authorized_servers:
-                    cfg = (self.mcp_manager.available_tools.get(server) or {}).get("config", {})
+                    cfg = (self.mcp_manager.available_tools.get(server) or {}).get(
+                        "config", {}
+                    )
                     server_compliance_level = cfg.get("compliance_level")
                     if compliance_mgr.is_accessible(
-                        user_level=user_compliance_level, resource_level=server_compliance_level
+                        user_level=user_compliance_level,
+                        resource_level=server_compliance_level,
                     ):
                         filtered_servers.append(server)
                     else:
@@ -198,7 +239,9 @@ class RAGMCPService:
             for server in authorized_servers:
                 server_data = self.mcp_manager.available_tools.get(server)
                 tools = (server_data or {}).get("tools", [])
-                if not any(getattr(t, "name", None) == "rag_discover_resources" for t in tools):
+                if not any(
+                    getattr(t, "name", None) == "rag_discover_resources" for t in tools
+                ):
                     continue
 
                 # Call discovery
@@ -223,9 +266,12 @@ class RAGMCPService:
 
                     # --- Compliance Filtering (Step 3) ---
                     # Check for both camelCase (MCP standard) and snake_case (RAG mock standard)
-                    resource_compliance_level = r.get("complianceLevel") or r.get("compliance_level")
+                    resource_compliance_level = r.get("complianceLevel") or r.get(
+                        "compliance_level"
+                    )
                     if compliance_mgr and not compliance_mgr.is_accessible(
-                        user_level=user_compliance_level, resource_level=resource_compliance_level
+                        user_level=user_compliance_level,
+                        resource_level=resource_compliance_level,
                     ):
                         logger.info(
                             "Skipping RAG resource %s:%s due to compliance level mismatch (user: %s, resource: %s)",
@@ -237,31 +283,45 @@ class RAGMCPService:
                         continue
                     # -------------------------------------
 
-                    ui_sources.append({
-                        "id": rid,
-                        "name": r.get("name") or rid,
-                        # New contract: authRequired expected true; pass-through in case of legacy servers
-                        "authRequired": bool(r.get("authRequired", True)),
-                        # New: include per-resource groups when provided
-                        "groups": list(r.get("groups", [])) if isinstance(r.get("groups"), list) else None,
-                        "selected": bool(r.get("defaultSelected", False)),
-                        # Include compliance_level from resource or inherit from server
-                        "complianceLevel": resource_compliance_level if resource_compliance_level else None,
-                    })
+                    ui_sources.append(
+                        {
+                            "id": rid,
+                            "name": r.get("name") or rid,
+                            # New contract: authRequired expected true; pass-through in case of legacy servers
+                            "authRequired": bool(r.get("authRequired", True)),
+                            # New: include per-resource groups when provided
+                            "groups": list(r.get("groups", []))
+                            if isinstance(r.get("groups"), list)
+                            else None,
+                            "selected": bool(r.get("defaultSelected", False)),
+                            # Include compliance_level from resource or inherit from server
+                            "complianceLevel": resource_compliance_level
+                            if resource_compliance_level
+                            else None,
+                        }
+                    )
 
                 # Optional config-driven icon/name and compliance level
-                cfg = (self.mcp_manager.available_tools.get(server) or {}).get("config", {})
+                cfg = (self.mcp_manager.available_tools.get(server) or {}).get(
+                    "config", {}
+                )
                 display_name = cfg.get("displayName") or server
-                icon = (cfg.get("ui") or {}).get("icon") if isinstance(cfg.get("ui"), dict) else None
+                icon = (
+                    (cfg.get("ui") or {}).get("icon")
+                    if isinstance(cfg.get("ui"), dict)
+                    else None
+                )
                 compliance_level = cfg.get("compliance_level")
 
-                rag_servers.append({
-                    "server": server,
-                    "displayName": display_name,
-                    "icon": icon,
-                    "complianceLevel": compliance_level,
-                    "sources": ui_sources,
-                })
+                rag_servers.append(
+                    {
+                        "server": server,
+                        "displayName": display_name,
+                        "icon": icon,
+                        "complianceLevel": compliance_level,
+                        "sources": ui_sources,
+                    }
+                )
         except Exception as e:
             logger.error("discover_servers error: %s", e, exc_info=True)
 
@@ -296,7 +356,9 @@ class RAGMCPService:
                 # Check tool availability
                 server_data = self.mcp_manager.available_tools.get(server) or {}
                 tool_list = server_data.get("tools", [])
-                if not any(getattr(t, "name", None) == "rag_get_raw_results" for t in tool_list):
+                if not any(
+                    getattr(t, "name", None) == "rag_get_raw_results" for t in tool_list
+                ):
                     continue
 
                 raw = await self.mcp_manager.call_tool(
@@ -403,7 +465,10 @@ class RAGMCPService:
             try:
                 server_data = self.mcp_manager.available_tools.get(server) or {}
                 tool_list = server_data.get("tools", [])
-                has_synth = any(getattr(t, "name", None) == "rag_get_synthesized_results" for t in tool_list)
+                has_synth = any(
+                    getattr(t, "name", None) == "rag_get_synthesized_results"
+                    for t in tool_list
+                )
                 if has_synth:
                     raw = await self.mcp_manager.call_tool(
                         server_name=server,
@@ -431,10 +496,19 @@ class RAGMCPService:
                     meta["providers"][server] = {"used_synth": True, "error": None}
                 else:
                     used_fallback = True
-                    raw_payload = await self.search_raw(username, query, [f"{server}:{rid}" for rid in rids], top_k=top_k or 8)
+                    raw_payload = await self.search_raw(
+                        username,
+                        query,
+                        [f"{server}:{rid}" for rid in rids],
+                        top_k=top_k or 8,
+                    )
                     # Build a rudimentary answer from snippets
-                    hits = ((raw_payload.get("results") or {}).get("hits") or [])
-                    snippet_texts = [h.get("snippet") or h.get("chunk") or "" for h in hits if isinstance(h, dict)]
+                    hits = (raw_payload.get("results") or {}).get("hits") or []
+                    snippet_texts = [
+                        h.get("snippet") or h.get("chunk") or ""
+                        for h in hits
+                        if isinstance(h, dict)
+                    ]
                     if snippet_texts:
                         answers.append("\n\n".join(snippet_texts[:3]))
                     meta["providers"][server] = {"used_synth": False, "error": None}
@@ -470,6 +544,7 @@ class RAGMCPService:
                     text = getattr(first, "text", None)
                     if isinstance(text, str) and text.strip():
                         import json
+
                         try:
                             obj = json.loads(text)
                             if isinstance(obj, dict):
@@ -485,13 +560,19 @@ class RAGMCPService:
         """Extract list of resource dicts from a normalized tool result."""
         if not isinstance(payload, dict):
             return []
-        results = payload.get("results") if isinstance(payload.get("results"), dict) else payload
+        results = (
+            payload.get("results")
+            if isinstance(payload.get("results"), dict)
+            else payload
+        )
         # Support both {results: {resources: [...]}} and {results: [...]}
         # Also support the RAG mock format: {accessible_data_sources: [...]}
         resources = (
             (results.get("resources") if isinstance(results, dict) else None)
             or payload.get("resources")
-            or payload.get("accessible_data_sources") # Added support for RAG mock format
+            or payload.get(
+                "accessible_data_sources"
+            )  # Added support for RAG mock format
             or []
         )
         if isinstance(resources, list):

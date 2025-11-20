@@ -9,6 +9,7 @@ from core.utils import get_current_user, sanitize_for_logging
 async def test_get_current_user_default():
     class Dummy:
         pass
+
     req = SimpleNamespace(state=SimpleNamespace())
     assert await get_current_user(req) == "test@test.com"
 
@@ -49,7 +50,9 @@ class TestSanitizeForLogging:
         """Test that ANSI escape sequences are removed."""
         # ANSI color codes
         assert sanitize_for_logging("\x1b[31mRed Text\x1b[0m") == "[31mRed Text[0m"
-        assert sanitize_for_logging("\x1b[1;32mBold Green\x1b[0m") == "[1;32mBold Green[0m"
+        assert (
+            sanitize_for_logging("\x1b[1;32mBold Green\x1b[0m") == "[1;32mBold Green[0m"
+        )
 
     def test_removes_null_bytes(self):
         """Test that null bytes are removed."""
@@ -110,7 +113,9 @@ class TestSanitizeForLogging:
 
     def test_mixed_control_characters(self):
         """Test strings with multiple types of control characters."""
-        assert sanitize_for_logging("Line1\r\nLine2\tTab\x00Null") == "Line1Line2TabNull"
+        assert (
+            sanitize_for_logging("Line1\r\nLine2\tTab\x00Null") == "Line1Line2TabNull"
+        )
         assert sanitize_for_logging("\x01\x02Test\n\rData\x7f\x80") == "TestData"
 
     def test_log_injection_attempt(self):
@@ -125,7 +130,9 @@ class TestSanitizeForLogging:
         """Test that regular punctuation and symbols are preserved."""
         assert sanitize_for_logging("Hello, World!") == "Hello, World!"
         assert sanitize_for_logging("Cost: $100 (20% off)") == "Cost: $100 (20% off)"
-        assert sanitize_for_logging("Email: test@example.com") == "Email: test@example.com"
+        assert (
+            sanitize_for_logging("Email: test@example.com") == "Email: test@example.com"
+        )
 
     def test_removes_unicode_line_separator(self):
         """Test that Unicode LINE SEPARATOR (U+2028) is removed."""
@@ -143,7 +150,10 @@ class TestSanitizeForLogging:
 
     def test_removes_both_unicode_separators(self):
         """Test that both Unicode separators are removed together."""
-        assert sanitize_for_logging("Text\u2028with\u2029separators") == "Textwithseparators"
+        assert (
+            sanitize_for_logging("Text\u2028with\u2029separators")
+            == "Textwithseparators"
+        )
         assert sanitize_for_logging("\u2028\u2029Mixed") == "Mixed"
         assert sanitize_for_logging("A\u2028B\u2029C\u2028D") == "ABCD"
 
@@ -155,7 +165,9 @@ class TestSanitizeForLogging:
 
     def test_unicode_separator_log_injection(self):
         """Test that Unicode separators can't be used for log injection."""
-        malicious_input = "user@example.com\u2028[ERROR] Fake error message\u2029[INFO] Fake info"
+        malicious_input = (
+            "user@example.com\u2028[ERROR] Fake error message\u2029[INFO] Fake info"
+        )
         sanitized = sanitize_for_logging(malicious_input)
         assert "\u2028" not in sanitized
         assert "\u2029" not in sanitized
@@ -179,7 +191,10 @@ class TestSanitizeForLogging:
         assert "\u2028" not in sanitized
         assert "\u2029" not in sanitized
         assert "\n" not in sanitized
-        assert sanitized == "Normal text[2025-11-08 10:00:00] CRITICAL: Injected messageadmin logged in"
+        assert (
+            sanitized
+            == "Normal text[2025-11-08 10:00:00] CRITICAL: Injected messageadmin logged in"
+        )
 
     def test_unicode_separators_do_not_affect_other_unicode(self):
         """Test that removing Unicode separators doesn't affect other Unicode characters."""

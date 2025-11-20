@@ -14,12 +14,14 @@ import types
 
 fake_litellm_caller = types.ModuleType("modules.llm.litellm_caller")
 
+
 class _FakeLLM:
     def __init__(self, *args, **kwargs):
         pass
 
     async def call_plain(self, *args, **kwargs):
         return "ok"
+
 
 fake_litellm_caller.LiteLLMCaller = _FakeLLM  # type: ignore
 sys.modules["modules.llm.litellm_caller"] = fake_litellm_caller
@@ -34,8 +36,16 @@ class FakeS3:
         self.endpoint_url = "mock://s3"
         self.bucket_name = "test-bucket"
 
-    async def upload_file(self, user_email: str, filename: str, content_base64: str, content_type: str = "application/octet-stream", tags=None, source_type: str = "user"):
-        key = f"k_{len(self._store)+1}"
+    async def upload_file(
+        self,
+        user_email: str,
+        filename: str,
+        content_base64: str,
+        content_type: str = "application/octet-stream",
+        tags=None,
+        source_type: str = "user",
+    ):
+        key = f"k_{len(self._store) + 1}"
         meta = {
             "key": key,
             "filename": filename,
@@ -120,9 +130,7 @@ def test_injection_produces_tokenized_urls(client, monkeypatch):
     # Create a fake session context with a file mapping
     session_context = {
         "user_email": "bob@example.com",
-        "files": {
-            "report.pdf": {"key": "abc123", "content_type": "application/pdf"}
-        },
+        "files": {"report.pdf": {"key": "abc123", "content_type": "application/pdf"}},
     }
 
     args = {"filename": "report.pdf"}

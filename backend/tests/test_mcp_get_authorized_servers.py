@@ -11,22 +11,13 @@ async def test_get_authorized_servers_with_async_auth():
     # Create a mock MCPToolManager with test server config
     mcp_manager = MCPToolManager(None)
     mcp_manager.servers_config = {
-        "server1": {
-            "enabled": True,
-            "groups": ["admin", "users"]
-        },
-        "server2": {
-            "enabled": True,
-            "groups": ["admin"]
-        },
+        "server1": {"enabled": True, "groups": ["admin", "users"]},
+        "server2": {"enabled": True, "groups": ["admin"]},
         "server3": {
             "enabled": True,
-            "groups": []  # No groups required
+            "groups": [],  # No groups required
         },
-        "server4": {
-            "enabled": False,
-            "groups": ["admin"]
-        }
+        "server4": {"enabled": False, "groups": ["admin"]},
     }
 
     # Mock async auth function
@@ -35,7 +26,9 @@ async def test_get_authorized_servers_with_async_auth():
         return group == "admin"
 
     # Test with user who has admin access
-    authorized = await mcp_manager.get_authorized_servers("admin@test.com", mock_auth_check)
+    authorized = await mcp_manager.get_authorized_servers(
+        "admin@test.com", mock_auth_check
+    )
 
     # Should include server1 (has admin), server2 (has admin), server3 (no groups required)
     # Should NOT include server4 (disabled)
@@ -48,21 +41,17 @@ async def test_get_authorized_servers_with_multiple_groups():
 
     mcp_manager = MCPToolManager(None)
     mcp_manager.servers_config = {
-        "server1": {
-            "enabled": True,
-            "groups": ["users", "developers"]
-        },
-        "server2": {
-            "enabled": True,
-            "groups": ["admin"]
-        }
+        "server1": {"enabled": True, "groups": ["users", "developers"]},
+        "server2": {"enabled": True, "groups": ["admin"]},
     }
 
     # User is in 'users' group but not 'admin'
     async def mock_auth_check(user_email: str, group: str) -> bool:
         return group in ["users", "developers"]
 
-    authorized = await mcp_manager.get_authorized_servers("user@test.com", mock_auth_check)
+    authorized = await mcp_manager.get_authorized_servers(
+        "user@test.com", mock_auth_check
+    )
 
     # Should include server1 (user is in 'users' group)
     # Should NOT include server2 (user not in 'admin' group)
@@ -75,20 +64,16 @@ async def test_get_authorized_servers_no_access():
 
     mcp_manager = MCPToolManager(None)
     mcp_manager.servers_config = {
-        "server1": {
-            "enabled": True,
-            "groups": ["admin"]
-        },
-        "server2": {
-            "enabled": True,
-            "groups": ["superusers"]
-        }
+        "server1": {"enabled": True, "groups": ["admin"]},
+        "server2": {"enabled": True, "groups": ["superusers"]},
     }
 
     # User has no group memberships
     async def mock_auth_check(user_email: str, group: str) -> bool:
         return False
 
-    authorized = await mcp_manager.get_authorized_servers("user@test.com", mock_auth_check)
+    authorized = await mcp_manager.get_authorized_servers(
+        "user@test.com", mock_auth_check
+    )
 
     assert authorized == []

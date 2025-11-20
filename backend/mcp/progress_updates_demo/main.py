@@ -111,7 +111,7 @@ def create_chart_html(data: Dict[str, int]) -> str:
             </div>
         </div>
         """
-    
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -180,40 +180,42 @@ async def task_with_canvas_updates(
 ) -> Dict[str, Any]:
     """
     Execute a long-running task with visual progress updates in the canvas.
-    
+
     This tool demonstrates how MCP servers can send canvas updates during
     execution, allowing users to see real-time visual progress indicators.
-    
+
     Args:
         task_name: Name of the task to execute
         steps: Number of steps to process (default: 5)
         interval_seconds: Delay between steps (default: 2)
         ctx: MCP context for progress reporting
-    
+
     Returns:
         Task completion summary with final results
     """
     total = max(1, int(steps))
     interval = max(1, int(interval_seconds))
-    
+
     # Initial progress
     if ctx:
         await ctx.report_progress(
-            progress=0,
-            total=total,
-            message=f"Starting {task_name}..."
+            progress=0, total=total, message=f"Starting {task_name}..."
         )
-    
+
     # Process each step and send visual updates as artifacts
     for step in range(1, total + 1):
         await asyncio.sleep(interval)
-        
+
         # Create progress visualization HTML
-        html_content = create_progress_html(step, total, f"Processing {task_name}: Step {step}")
+        html_content = create_progress_html(
+            step, total, f"Processing {task_name}: Step {step}"
+        )
 
         # Send progress HTML as an artifact so it uses the HTML viewer
         if ctx:
-            artifact_html = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
+            artifact_html = base64.b64encode(html_content.encode("utf-8")).decode(
+                "utf-8"
+            )
             update_payload = {
                 "type": "artifacts",
                 "artifacts": [
@@ -238,40 +240,40 @@ async def task_with_canvas_updates(
                 total=total,
                 message=f"MCP_UPDATE:{json.dumps(update_payload)}",
             )
-    
+
     # Final result with chart
     result_data = {
         "Items Processed": total * 10,
         "Errors Found": 2,
         "Warnings": 5,
-        "Success Rate": 95
+        "Success Rate": 95,
     }
-    
+
     chart_html = create_chart_html(result_data)
-    
+
     return {
         "results": {
             "task": task_name,
             "status": "completed",
             "steps_completed": total,
-            "summary": result_data
+            "summary": result_data,
         },
         "artifacts": [
             {
                 "name": "final_results.html",
-                "b64": base64.b64encode(chart_html.encode('utf-8')).decode('utf-8'),
+                "b64": base64.b64encode(chart_html.encode("utf-8")).decode("utf-8"),
                 "mime": "text/html",
                 "size": len(chart_html),
                 "description": "Final processing results chart",
-                "viewer": "html"
+                "viewer": "html",
             }
         ],
         "display": {
             "open_canvas": True,
             "primary_file": "final_results.html",
             "mode": "replace",
-            "viewer_hint": "html"
-        }
+            "viewer_hint": "html",
+        },
     }
 
 
@@ -284,16 +286,16 @@ async def task_with_system_messages(
 ) -> Dict[str, Any]:
     """
     Execute a task with rich system messages displayed in chat history.
-    
+
     This tool demonstrates how MCP servers can send rich system messages
     that appear as new items in the chat history during tool execution.
-    
+
     Args:
         task_name: Name of the analysis task
         stages: Number of stages to process (default: 4)
         interval_seconds: Delay between stages (default: 2)
         ctx: MCP context for progress reporting
-    
+
     Returns:
         Analysis completion summary
     """
@@ -301,43 +303,41 @@ async def task_with_system_messages(
         "Data Collection",
         "Data Validation",
         "Analysis",
-        "Report Generation"
+        "Report Generation",
     ][:stages]
-    
+
     total = len(stage_names)
-    
+
     # Initial progress
     if ctx:
         await ctx.report_progress(
-            progress=0,
-            total=total,
-            message=f"Starting {task_name}..."
+            progress=0, total=total, message=f"Starting {task_name}..."
         )
-    
+
     # Process each stage and send system messages
     for i, stage in enumerate(stage_names, 1):
         await asyncio.sleep(interval_seconds)
-        
+
         # Send system message
         if ctx:
             update_payload = {
                 "type": "system_message",
                 "message": f"**{stage}** - Stage {i}/{total} completed successfully",
                 "subtype": "success",
-                "progress_message": f"{task_name}: {stage}"
+                "progress_message": f"{task_name}: {stage}",
             }
             await ctx.report_progress(
                 progress=i,
                 total=total,
-                message=f"MCP_UPDATE:{json.dumps(update_payload)}"
+                message=f"MCP_UPDATE:{json.dumps(update_payload)}",
             )
-    
+
     return {
         "results": {
             "task": task_name,
             "status": "completed",
             "stages_completed": total,
-            "completion_message": f"All {total} stages completed successfully"
+            "completion_message": f"All {total} stages completed successfully",
         }
     }
 
@@ -351,34 +351,32 @@ async def task_with_artifacts(
 ) -> Dict[str, Any]:
     """
     Execute a task that generates and displays artifacts progressively.
-    
+
     This tool demonstrates how MCP servers can send file artifacts during
     execution, allowing users to see intermediate results as they're generated.
-    
+
     Args:
         task_name: Name of the processing task
         files_to_generate: Number of intermediate files to create (default: 3)
         interval_seconds: Delay between file generation (default: 2)
         ctx: MCP context for progress reporting
-    
+
     Returns:
         Processing completion summary
     """
     total = max(1, int(files_to_generate))
     interval = max(1, int(interval_seconds))
-    
+
     # Initial progress
     if ctx:
         await ctx.report_progress(
-            progress=0,
-            total=total,
-            message=f"Starting {task_name}..."
+            progress=0, total=total, message=f"Starting {task_name}..."
         )
-    
+
     # Generate intermediate files
     for file_num in range(1, total + 1):
         await asyncio.sleep(interval)
-        
+
         # Create intermediate result HTML
         intermediate_html = f"""
         <!DOCTYPE html>
@@ -409,7 +407,7 @@ async def task_with_artifacts(
         </body>
         </html>
         """
-        
+
         # Send artifact via structured progress message
         if ctx:
             artifact_data = {
@@ -417,26 +415,28 @@ async def task_with_artifacts(
                 "artifacts": [
                     {
                         "name": f"intermediate_result_{file_num}.html",
-                        "b64": base64.b64encode(intermediate_html.encode('utf-8')).decode('utf-8'),
+                        "b64": base64.b64encode(
+                            intermediate_html.encode("utf-8")
+                        ).decode("utf-8"),
                         "mime": "text/html",
                         "size": len(intermediate_html),
                         "description": f"Intermediate result {file_num}",
-                        "viewer": "html"
+                        "viewer": "html",
                     }
                 ],
                 "display": {
                     "open_canvas": True,
                     "primary_file": f"intermediate_result_{file_num}.html",
-                    "mode": "replace"
+                    "mode": "replace",
                 },
-                "progress_message": f"Generated file {file_num}/{total}"
+                "progress_message": f"Generated file {file_num}/{total}",
             }
             await ctx.report_progress(
                 progress=file_num,
                 total=total,
-                message=f"MCP_UPDATE:{json.dumps(artifact_data)}"
+                message=f"MCP_UPDATE:{json.dumps(artifact_data)}",
             )
-    
+
     # Final result
     final_html = """
     <!DOCTYPE html>
@@ -468,29 +468,25 @@ async def task_with_artifacts(
     </body>
     </html>
     """
-    
+
     return {
-        "results": {
-            "task": task_name,
-            "status": "completed",
-            "files_generated": total
-        },
+        "results": {"task": task_name, "status": "completed", "files_generated": total},
         "artifacts": [
             {
                 "name": "final_result.html",
-                "b64": base64.b64encode(final_html.encode('utf-8')).decode('utf-8'),
+                "b64": base64.b64encode(final_html.encode("utf-8")).decode("utf-8"),
                 "mime": "text/html",
                 "size": len(final_html),
                 "description": "Final processing result",
-                "viewer": "html"
+                "viewer": "html",
             }
         ],
         "display": {
             "open_canvas": True,
             "primary_file": "final_result.html",
             "mode": "replace",
-            "viewer_hint": "html"
-        }
+            "viewer_hint": "html",
+        },
     }
 
 

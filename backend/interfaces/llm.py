@@ -3,19 +3,19 @@
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 
-
 class LLMResponse:
     """Response from LLM."""
+
     def __init__(
         self,
         content: str,
         tool_calls: Optional[List[Dict[str, Any]]] = None,
-        model_used: Optional[str] = None
+        model_used: Optional[str] = None,
     ):
         self.content = content
         self.tool_calls = tool_calls
         self.model_used = model_used
-    
+
     def has_tool_calls(self) -> bool:
         """Check if response has tool calls."""
         return bool(self.tool_calls)
@@ -24,7 +24,7 @@ class LLMResponse:
 @runtime_checkable
 class LLMProtocol(Protocol):
     """Protocol for LLM interactions."""
-    
+
     async def call_plain(
         self,
         model_name: str,
@@ -33,7 +33,7 @@ class LLMProtocol(Protocol):
     ) -> str:
         """Plain LLM call without tools or RAG."""
         ...
-    
+
     async def call_with_tools(
         self,
         model_name: str,
@@ -44,7 +44,7 @@ class LLMProtocol(Protocol):
     ) -> LLMResponse:
         """LLM call with tool support."""
         ...
-    
+
     async def call_with_rag(
         self,
         model_name: str,
@@ -55,7 +55,7 @@ class LLMProtocol(Protocol):
     ) -> str:
         """LLM call with RAG integration."""
         ...
-    
+
     async def call_with_rag_and_tools(
         self,
         model_name: str,

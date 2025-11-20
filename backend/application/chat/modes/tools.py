@@ -21,23 +21,27 @@ UpdateCallback = Callable[[Dict[str, Any]], Awaitable[None]]
 class ToolsModeRunner:
     """
     Runner for tools mode.
-    
+
     Executes LLM calls with tool integration, including tool execution
     and artifact processing.
     """
-    
+
     def __init__(
         self,
         llm: LLMProtocol,
         tool_manager: ToolManagerProtocol,
         event_publisher: EventPublisher,
         prompt_provider: Optional[PromptProvider] = None,
-        artifact_processor: Optional[Callable[[Session, List[ToolResult], Optional[UpdateCallback]], Awaitable[None]]] = None,
+        artifact_processor: Optional[
+            Callable[
+                [Session, List[ToolResult], Optional[UpdateCallback]], Awaitable[None]
+            ]
+        ] = None,
         config_manager=None,
     ):
         """
         Initialize tools mode runner.
-        
+
         Args:
             llm: LLM protocol implementation
             tool_manager: Tool manager for tool execution
@@ -52,7 +56,7 @@ class ToolsModeRunner:
         self.prompt_provider = prompt_provider
         self.artifact_processor = artifact_processor
         self.config_manager = config_manager
-    
+
     async def run(
         self,
         session: Session,
@@ -67,7 +71,7 @@ class ToolsModeRunner:
     ) -> Dict[str, Any]:
         """
         Execute tools mode.
-        
+
         Args:
             session: Current chat session
             model: LLM model to use
@@ -78,12 +82,14 @@ class ToolsModeRunner:
             tool_choice_required: Whether tool use is required
             update_callback: Optional callback for streaming updates
             temperature: LLM temperature parameter
-            
+
         Returns:
             Response dictionary
         """
         # Resolve tool schemas
-        tools_schema = await error_utils.safe_get_tools_schema(self.tool_manager, selected_tools)
+        tools_schema = await error_utils.safe_get_tools_schema(
+            self.tool_manager, selected_tools
+        )
 
         # Call LLM with tools (and RAG if provided)
         llm_response = await error_utils.safe_call_llm_with_tools(
@@ -102,13 +108,13 @@ class ToolsModeRunner:
             content = llm_response.content if llm_response else ""
             assistant_message = Message(role=MessageRole.ASSISTANT, content=content)
             session.history.add_message(assistant_message)
-            
+
             await self.event_publisher.publish_chat_response(
                 message=content,
                 has_pending_tools=False,
             )
             await self.event_publisher.publish_response_complete()
-            
+
             return notification_utils.create_chat_response(content)
 
         # Execute tool workflow
@@ -127,7 +133,9 @@ class ToolsModeRunner:
 
         # Process artifacts if handler provided
         if self.artifact_processor:
-            await self.artifact_processor(session, tool_results, update_callback or self._get_send_json())
+            await self.artifact_processor(
+                session, tool_results, update_callback or self._get_send_json()
+            )
 
         # Add final assistant message to history
         assistant_message = Message(
@@ -135,7 +143,11 @@ class ToolsModeRunner:
             content=final_response,
             metadata={
                 "tools": selected_tools,
-                **({"data_sources": selected_data_sources} if selected_data_sources else {}),
+                **(
+                    {"data_sources": selected_data_sources}
+                    if selected_data_sources
+                    else {}
+                ),
             },
         )
         session.history.add_message(assistant_message)
@@ -148,9 +160,9 @@ class ToolsModeRunner:
         await self.event_publisher.publish_response_complete()
 
         return notification_utils.create_chat_response(final_response)
-    
+
     def _get_send_json(self) -> Optional[UpdateCallback]:
         """Get send_json callback from event publisher if available."""
-        if hasattr(self.event_publisher, 'send_json'):
+        if hasattr(self.event_publisher, "send_json"):
             return self.event_publisher.send_json
         return None

@@ -5,12 +5,13 @@ from application.chat.utilities.tool_utils import (
     requires_approval,
     tool_accepts_username,
     _sanitize_args_for_ui,
-    _filter_args_to_schema
+    _filter_args_to_schema,
 )
 
 
 class MockToolConfig:
     """Mock tool configuration."""
+
     def __init__(self, require_approval, allow_edit):
         self.require_approval = require_approval
         self.allow_edit = allow_edit
@@ -18,6 +19,7 @@ class MockToolConfig:
 
 class MockApprovalsConfig:
     """Mock approvals configuration."""
+
     def __init__(self, require_by_default=True, tools=None):
         self.require_approval_by_default = require_by_default
         self.tools = tools or {}
@@ -28,7 +30,9 @@ class TestRequiresApproval:
 
     def test_requires_approval_no_config_manager(self):
         """Test requires_approval with no config manager."""
-        needs_approval, allow_edit, admin_required = requires_approval("test_tool", None)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "test_tool", None
+        )
 
         assert needs_approval is True
         assert allow_edit is True
@@ -40,11 +44,15 @@ class TestRequiresApproval:
         config_manager.tool_approvals_config = MockApprovalsConfig(
             require_by_default=False,
             tools={
-                "dangerous_tool": MockToolConfig(require_approval=True, allow_edit=False)
-            }
+                "dangerous_tool": MockToolConfig(
+                    require_approval=True, allow_edit=False
+                )
+            },
         )
 
-        needs_approval, allow_edit, admin_required = requires_approval("dangerous_tool", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "dangerous_tool", config_manager
+        )
 
         assert needs_approval is True
         # UI is always editable when approval is required
@@ -59,11 +67,12 @@ class TestRequiresApproval:
         """
         config_manager = Mock()
         config_manager.tool_approvals_config = MockApprovalsConfig(
-            require_by_default=True,
-            tools={}
+            require_by_default=True, tools={}
         )
 
-        needs_approval, allow_edit, admin_required = requires_approval("any_tool", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "any_tool", config_manager
+        )
 
         assert needs_approval is True
         assert allow_edit is True
@@ -73,11 +82,12 @@ class TestRequiresApproval:
         """Test requires_approval with default set to not require approval."""
         config_manager = Mock()
         config_manager.tool_approvals_config = MockApprovalsConfig(
-            require_by_default=False,
-            tools={}
+            require_by_default=False, tools={}
         )
 
-        needs_approval, allow_edit, admin_required = requires_approval("any_tool", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "any_tool", config_manager
+        )
 
         # Default is False but function returns True with user-level approval
         assert needs_approval is True
@@ -90,7 +100,9 @@ class TestRequiresApproval:
         config_manager.tool_approvals_config = None
 
         # Should not raise, should return default
-        needs_approval, allow_edit, admin_required = requires_approval("test_tool", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "test_tool", config_manager
+        )
 
         assert needs_approval is True
         assert allow_edit is True
@@ -104,18 +116,22 @@ class TestRequiresApproval:
             tools={
                 "tool_a": MockToolConfig(require_approval=True, allow_edit=True),
                 "tool_b": MockToolConfig(require_approval=True, allow_edit=False),
-                "tool_c": MockToolConfig(require_approval=False, allow_edit=True)
-            }
+                "tool_c": MockToolConfig(require_approval=False, allow_edit=True),
+            },
         )
 
         # Tool A
-        needs_approval, allow_edit, admin_required = requires_approval("tool_a", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "tool_a", config_manager
+        )
         assert needs_approval is True
         assert allow_edit is True
         assert admin_required is True
 
         # Tool B (allow_edit False in config is ignored for UI gating)
-        needs_approval, allow_edit, admin_required = requires_approval("tool_b", config_manager)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "tool_b", config_manager
+        )
         assert needs_approval is True
         assert allow_edit is True
         assert admin_required is True
@@ -130,9 +146,11 @@ class TestRequiresApproval:
                 "tool_a": MockToolConfig(require_approval=True, allow_edit=True),
                 "tool_b": MockToolConfig(require_approval=True, allow_edit=False),
                 # tool_c omitted to simulate Option B config building
-            }
+            },
         )
-        needs_approval, allow_edit, admin_required = requires_approval("tool_c", config_manager2)
+        needs_approval, allow_edit, admin_required = requires_approval(
+            "tool_c", config_manager2
+        )
         assert needs_approval is True
         assert allow_edit is True
         assert admin_required is False
@@ -151,9 +169,9 @@ class TestToolAcceptsUsername:
                     "parameters": {
                         "properties": {
                             "username": {"type": "string"},
-                            "other_param": {"type": "string"}
+                            "other_param": {"type": "string"},
                         }
-                    }
+                    },
                 }
             }
         ]
@@ -168,11 +186,7 @@ class TestToolAcceptsUsername:
             {
                 "function": {
                     "name": "test_tool",
-                    "parameters": {
-                        "properties": {
-                            "other_param": {"type": "string"}
-                        }
-                    }
+                    "parameters": {"properties": {"other_param": {"type": "string"}}},
                 }
             }
         ]
@@ -226,7 +240,7 @@ class TestSanitizeArgsForUI:
         args = {
             "file_names": [
                 "http://example.com/file1.txt?token=abc",
-                "http://example.com/file2.txt?token=def"
+                "http://example.com/file2.txt?token=def",
             ]
         }
         result = _sanitize_args_for_ui(args)
@@ -247,7 +261,7 @@ class TestSanitizeArgsForUI:
         args = {
             "file_urls": [
                 "http://example.com/file1.txt?token=abc",
-                "http://example.com/file2.txt?token=def"
+                "http://example.com/file2.txt?token=def",
             ]
         }
         result = _sanitize_args_for_ui(args)
@@ -261,7 +275,7 @@ class TestSanitizeArgsForUI:
         args = {
             "filename": "http://example.com/file.txt?token=secret",
             "other_param": "normal_value",
-            "file_names": ["file1.txt", "file2.txt"]
+            "file_names": ["file1.txt", "file2.txt"],
         }
         result = _sanitize_args_for_ui(args)
 
@@ -283,9 +297,9 @@ class TestFilterArgsToSchema:
                     "parameters": {
                         "properties": {
                             "allowed_param": {"type": "string"},
-                            "another_param": {"type": "number"}
+                            "another_param": {"type": "number"},
                         }
-                    }
+                    },
                 }
             }
         ]
@@ -295,7 +309,7 @@ class TestFilterArgsToSchema:
             "another_param": 42,
             "original_filename": "old.txt",
             "file_url": "http://example.com/file.txt",
-            "extra_param": "should_be_removed"
+            "extra_param": "should_be_removed",
         }
 
         result = _filter_args_to_schema(args, "test_tool", tool_manager)
@@ -314,7 +328,7 @@ class TestFilterArgsToSchema:
         args = {
             "param": "value",
             "original_filename": "old.txt",
-            "file_url": "http://example.com/file.txt"
+            "file_url": "http://example.com/file.txt",
         }
 
         result = _filter_args_to_schema(args, "test_tool", tool_manager)
@@ -329,7 +343,7 @@ class TestFilterArgsToSchema:
         args = {
             "param": "value",
             "original_something": "should_be_removed",
-            "file_urls": ["url1", "url2"]
+            "file_urls": ["url1", "url2"],
         }
 
         result = _filter_args_to_schema(args, "test_tool", None)
@@ -343,10 +357,7 @@ class TestFilterArgsToSchema:
         tool_manager = Mock()
         tool_manager.get_tools_schema.side_effect = Exception("Schema error")
 
-        args = {
-            "param": "value",
-            "original_param": "remove_me"
-        }
+        args = {"param": "value", "original_param": "remove_me"}
 
         result = _filter_args_to_schema(args, "test_tool", tool_manager)
 

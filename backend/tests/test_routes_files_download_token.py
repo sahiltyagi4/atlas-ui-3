@@ -10,6 +10,7 @@ def test_files_download_with_token(monkeypatch):
 
     # Prepare fake file in mock S3 by monkeypatching S3 client get_file
     from infrastructure.app_factory import app_factory
+
     s3 = app_factory.get_file_storage()
 
     async def fake_get_file(user, key):
@@ -27,7 +28,9 @@ def test_files_download_with_token(monkeypatch):
 
     monkeypatch.setattr(s3, "get_file", fake_get_file)
 
-    token = generate_file_token(user_email="test@test.com", file_key="k1", ttl_seconds=60)
+    token = generate_file_token(
+        user_email="test@test.com", file_key="k1", ttl_seconds=60
+    )
 
     resp = client.get(
         "/api/files/download/k1",

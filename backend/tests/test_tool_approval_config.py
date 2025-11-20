@@ -31,13 +31,13 @@ class TestToolApprovalConfig:
         approval_config = cm.tool_approvals_config
 
         # Test basic structure - config may have tool-specific configs from overrides
-        assert hasattr(approval_config, 'tools')
+        assert hasattr(approval_config, "tools")
         assert isinstance(approval_config.tools, dict)
 
         # If there are any tool configs, verify they have the right structure
         for tool_name, tool_config in approval_config.tools.items():
-            assert hasattr(tool_config, 'require_approval')
-            assert hasattr(tool_config, 'allow_edit')
+            assert hasattr(tool_config, "require_approval")
+            assert hasattr(tool_config, "allow_edit")
             assert isinstance(tool_config.require_approval, bool)
             assert isinstance(tool_config.allow_edit, bool)
 
@@ -55,8 +55,8 @@ class TestToolApprovalConfig:
 
         # Each tool config should have require_approval and allow_edit
         for tool_name, tool_config in approval_config.tools.items():
-            assert hasattr(tool_config, 'require_approval')
-            assert hasattr(tool_config, 'allow_edit')
+            assert hasattr(tool_config, "require_approval")
+            assert hasattr(tool_config, "allow_edit")
             assert isinstance(tool_config.require_approval, bool)
             assert isinstance(tool_config.allow_edit, bool)
 
@@ -64,7 +64,7 @@ class TestToolApprovalConfig:
         """Test that ConfigManager provides tool_approvals_config."""
         cm = ConfigManager()
 
-        assert hasattr(cm, 'tool_approvals_config')
+        assert hasattr(cm, "tool_approvals_config")
         assert cm.tool_approvals_config is not None
 
     def test_multiple_config_manager_instances(self):
@@ -85,8 +85,8 @@ class TestToolApprovalConfig:
         approval_config = cm.tool_approvals_config
 
         # Should have these attributes
-        assert hasattr(approval_config, 'require_approval_by_default')
-        assert hasattr(approval_config, 'tools')
+        assert hasattr(approval_config, "require_approval_by_default")
+        assert hasattr(approval_config, "tools")
 
         # Types should be correct
         assert isinstance(approval_config.require_approval_by_default, bool)

@@ -1,4 +1,3 @@
-
 from backend.modules.config.config_manager import config_manager
 
 

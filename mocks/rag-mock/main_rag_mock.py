@@ -24,8 +24,8 @@ USERS_GROUPS_DB = {
     "bob": ["sales", "business-dev"],
     "charlie": ["engineering", "product-team"],
     "diana": ["finance", "business-dev"],
-    "eve": ["guest"], # A user with limited access
-    "test@test.com": ["engineering", "finance"] # Added new test user
+    "eve": ["guest"],  # A user with limited access
+    "test@test.com": ["engineering", "finance"],  # Added new test user
 }
 
 # Mock database mapping data sources to the groups that are allowed to access them.
@@ -35,7 +35,7 @@ DATA_SOURCES_PERMISSIONS_DB = {
     "production_db_schema": ["engineering"],
     "kubernetes_cluster_logs": ["infra-team"],
     "marketing_campaign_plan_q4": ["sales", "business-dev"],
-    "public_company_handbook": [], # Accessible by everyone
+    "public_company_handbook": [],  # Accessible by everyone
 }
 
 # Mock database storing the compliance level for each data source.
@@ -64,6 +64,7 @@ RAG_METADATA_DB = {}
 # 3. Authorization Logic
 # ------------------------------------------------------------------------------
 
+
 def is_user_in_group(user_name: str, group: str) -> bool:
     """
     Mock function to check if a user is in a specific group.
@@ -71,6 +72,7 @@ def is_user_in_group(user_name: str, group: str) -> bool:
     """
     user_groups = USERS_GROUPS_DB.get(user_name, [])
     return group in user_groups
+
 
 def authorize_user_for_data_source(user_name: str, data_source: str):
     """
@@ -81,21 +83,20 @@ def authorize_user_for_data_source(user_name: str, data_source: str):
     # Check 1: Does the requested data source exist?
     if data_source not in DATA_SOURCES_PERMISSIONS_DB:
         raise HTTPException(
-            status_code=404,
-            detail=f"Data source '{data_source}' not found."
+            status_code=404, detail=f"Data source '{data_source}' not found."
         )
 
     required_groups = DATA_SOURCES_PERMISSIONS_DB[data_source]
 
     # Check 2: Is the data source public (no specific groups required)?
     if not required_groups:
-        return True # Access granted for public data
+        return True  # Access granted for public data
 
     # Check 3: Does the user exist in our system?
     if user_name not in USERS_GROUPS_DB:
         raise HTTPException(
             status_code=403,
-            detail=f"User '{user_name}' not found or has no permissions."
+            detail=f"User '{user_name}' not found or has no permissions.",
         )
 
     # Check 4: Is the user in at least one of the required groups?
@@ -103,45 +104,82 @@ def authorize_user_for_data_source(user_name: str, data_source: str):
         raise HTTPException(
             status_code=403,
             detail=f"User '{user_name}' is not authorized to access data source '{data_source}'. "
-                   f"Requires one of the following groups: {required_groups}"
+            f"Requires one of the following groups: {required_groups}",
         )
 
-    return True # Access granted
+    return True  # Access granted
+
 
 # ------------------------------------------------------------------------------
 # 4. Pydantic Models for Request and Response (OpenAI-like)
 # ------------------------------------------------------------------------------
 
+
 class ChatMessage(BaseModel):
-    role: str = Field(..., description="The role of the message author (e.g., 'user', 'system').")
+    role: str = Field(
+        ..., description="The role of the message author (e.g., 'user', 'system')."
+    )
     content: str = Field(..., description="The content of the message.")
 
+
 class ChatCompletionRequest(BaseModel):
-    messages: List[ChatMessage] = Field(..., description="A list of messages comprising the conversation so far.")
-    user_name: str = Field(..., description="The username of the individual making the request.", json_schema_extra={"example": "alice"})
-    data_source: str = Field(..., description="The specific data source to query for context.", json_schema_extra={"example": "kubernetes_cluster_logs"})
-    model: str = "gpt-4-rag-mock" # Mock model name
-    stream: bool = False # Mock streaming parameter
+    messages: List[ChatMessage] = Field(
+        ..., description="A list of messages comprising the conversation so far."
+    )
+    user_name: str = Field(
+        ...,
+        description="The username of the individual making the request.",
+        json_schema_extra={"example": "alice"},
+    )
+    data_source: str = Field(
+        ...,
+        description="The specific data source to query for context.",
+        json_schema_extra={"example": "kubernetes_cluster_logs"},
+    )
+    model: str = "gpt-4-rag-mock"  # Mock model name
+    stream: bool = False  # Mock streaming parameter
+
 
 class DocumentMetadata(BaseModel):
     source: str = Field(..., description="The name/path of the source document")
-    content_type: str = Field(..., description="Type of content (e.g., 'text', 'pdf', 'database')")
-    confidence_score: float = Field(..., description="Relevance confidence score (0.0-1.0)")
-    chunk_id: Optional[str] = Field(None, description="Identifier for the specific chunk/section")
-    last_modified: Optional[str] = Field(None, description="Last modification timestamp")
+    content_type: str = Field(
+        ..., description="Type of content (e.g., 'text', 'pdf', 'database')"
+    )
+    confidence_score: float = Field(
+        ..., description="Relevance confidence score (0.0-1.0)"
+    )
+    chunk_id: Optional[str] = Field(
+        None, description="Identifier for the specific chunk/section"
+    )
+    last_modified: Optional[str] = Field(
+        None, description="Last modification timestamp"
+    )
+
 
 class RAGMetadata(BaseModel):
-    query_processing_time_ms: int = Field(..., description="Time taken to process the query in milliseconds")
-    total_documents_searched: int = Field(..., description="Total number of documents searched")
-    documents_found: List[DocumentMetadata] = Field(..., description="List of documents that were found and used")
+    query_processing_time_ms: int = Field(
+        ..., description="Time taken to process the query in milliseconds"
+    )
+    total_documents_searched: int = Field(
+        ..., description="Total number of documents searched"
+    )
+    documents_found: List[DocumentMetadata] = Field(
+        ..., description="List of documents that were found and used"
+    )
     data_source_name: str = Field(..., description="Name of the data source queried")
-    retrieval_method: str = Field(default="similarity_search", description="Method used for document retrieval")
-    query_embedding_time_ms: Optional[int] = Field(None, description="Time taken for query embedding")
+    retrieval_method: str = Field(
+        default="similarity_search", description="Method used for document retrieval"
+    )
+    query_embedding_time_ms: Optional[int] = Field(
+        None, description="Time taken for query embedding"
+    )
+
 
 class ChatCompletionChoice(BaseModel):
     index: int = 0
     message: ChatMessage
     finish_reason: str = "stop"
+
 
 class ChatCompletionResponse(BaseModel):
     id: str = "chatcmpl-mock-12345"
@@ -149,18 +187,29 @@ class ChatCompletionResponse(BaseModel):
     created: int = 1677652288
     model: str = "gpt-4-rag-mock"
     choices: List[ChatCompletionChoice]
-    rag_metadata: Optional[RAGMetadata] = Field(None, description="Metadata about the RAG processing")
+    rag_metadata: Optional[RAGMetadata] = Field(
+        None, description="Metadata about the RAG processing"
+    )
+
 
 class ComplianceDeclaration(BaseModel):
-    compliance_level: str = Field(..., description="The compliance level to assign to the data source.")
+    compliance_level: str = Field(
+        ..., description="The compliance level to assign to the data source."
+    )
+
 
 class DataSource(BaseModel):
     name: str = Field(..., description="The name of the data source.")
-    compliance_level: str = Field(..., description="The compliance level of the data source.")
+    compliance_level: str = Field(
+        ..., description="The compliance level of the data source."
+    )
+
 
 class DataSourceDiscoveryResponse(BaseModel):
     user_name: str
-    accessible_data_sources: List[DataSource] = Field(..., description="A list of data source objects the user can access.")
+    accessible_data_sources: List[DataSource] = Field(
+        ..., description="A list of data source objects the user can access."
+    )
 
 
 # ------------------------------------------------------------------------------
@@ -175,15 +224,15 @@ RAG_METADATA_DB = {
             content_type="pdf",
             confidence_score=0.95,
             chunk_id="section_2",
-            last_modified="2024-09-15T10:30:00Z"
+            last_modified="2024-09-15T10:30:00Z",
         ),
         DocumentMetadata(
             source="enterprise_growth_analysis.xlsx",
-            content_type="spreadsheet", 
+            content_type="spreadsheet",
             confidence_score=0.87,
             chunk_id="sheet_summary",
-            last_modified="2024-09-10T14:20:00Z"
-        )
+            last_modified="2024-09-10T14:20:00Z",
+        ),
     ],
     "production_db_schema": [
         DocumentMetadata(
@@ -191,7 +240,7 @@ RAG_METADATA_DB = {
             content_type="text",
             confidence_score=0.98,
             chunk_id="users_table_section",
-            last_modified="2024-08-30T09:15:00Z"
+            last_modified="2024-08-30T09:15:00Z",
         )
     ],
     "kubernetes_cluster_logs": [
@@ -200,15 +249,15 @@ RAG_METADATA_DB = {
             content_type="log",
             confidence_score=0.92,
             chunk_id="recent_entries",
-            last_modified="2024-12-29T15:45:00Z"
+            last_modified="2024-12-29T15:45:00Z",
         ),
         DocumentMetadata(
             source="cluster_monitoring_dashboard.json",
             content_type="json",
             confidence_score=0.78,
             chunk_id="memory_metrics",
-            last_modified="2024-12-29T15:40:00Z"
-        )
+            last_modified="2024-12-29T15:40:00Z",
+        ),
     ],
     "marketing_campaign_plan_q4": [
         DocumentMetadata(
@@ -216,7 +265,7 @@ RAG_METADATA_DB = {
             content_type="document",
             confidence_score=0.94,
             chunk_id="winter_campaign",
-            last_modified="2024-11-20T11:30:00Z"
+            last_modified="2024-11-20T11:30:00Z",
         )
     ],
     "public_company_handbook": [
@@ -225,16 +274,16 @@ RAG_METADATA_DB = {
             content_type="pdf",
             confidence_score=0.89,
             chunk_id="company_values",
-            last_modified="2024-01-15T08:00:00Z"
+            last_modified="2024-01-15T08:00:00Z",
         ),
         DocumentMetadata(
             source="security_training_requirements.md",
             content_type="text",
             confidence_score=0.85,
             chunk_id="annual_training",
-            last_modified="2024-07-01T12:00:00Z"
-        )
-    ]
+            last_modified="2024-07-01T12:00:00Z",
+        ),
+    ],
 }
 
 
@@ -242,31 +291,40 @@ RAG_METADATA_DB = {
 # 6. API Endpoints
 # ------------------------------------------------------------------------------
 
+
 @app.post(
     "/v1/datasources/{data_source_name}/compliance",
-    summary="Declare the compliance level for a data source"
+    summary="Declare the compliance level for a data source",
 )
 async def declare_compliance(
     data_source_name: str = Path(..., description="The name of the data source."),
-    declaration: ComplianceDeclaration = Body(...)
+    declaration: ComplianceDeclaration = Body(...),
 ):
     """
     Simulates setting the compliance level for a data source.
     """
     if data_source_name not in DATA_SOURCES_PERMISSIONS_DB:
-        raise HTTPException(status_code=404, detail=f"Data source '{data_source_name}' not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Data source '{data_source_name}' not found."
+        )
 
     DATA_SOURCES_COMPLIANCE_DB[data_source_name] = declaration.compliance_level
-    return {"message": f"Compliance level for '{data_source_name}' set to '{declaration.compliance_level}'"}
+    return {
+        "message": f"Compliance level for '{data_source_name}' set to '{declaration.compliance_level}'"
+    }
 
 
 @app.get(
     "/v1/discover/datasources/{user_name}",
     response_model=DataSourceDiscoveryResponse,
-    summary="Discover data sources accessible by a user"
+    summary="Discover data sources accessible by a user",
 )
 async def discover_data_sources(
-    user_name: str = Path(..., description="The username to check permissions for.", json_schema_extra={"example": "test@test.com"})
+    user_name: str = Path(
+        ...,
+        description="The username to check permissions for.",
+        json_schema_extra={"example": "test@test.com"},
+    ),
 ):
     """
     Checks all available data sources and returns a list of the ones
@@ -285,23 +343,26 @@ async def discover_data_sources(
 
         # If the data source is public, anyone can access it.
         if not required_groups:
-            accessible_sources.append(DataSource(name=source, compliance_level=compliance_level))
+            accessible_sources.append(
+                DataSource(name=source, compliance_level=compliance_level)
+            )
             continue
 
         # Check if the user is in any of the required groups for this data source.
         if any(is_user_in_group(user_name, group) for group in required_groups):
-            accessible_sources.append(DataSource(name=source, compliance_level=compliance_level))
+            accessible_sources.append(
+                DataSource(name=source, compliance_level=compliance_level)
+            )
 
     return DataSourceDiscoveryResponse(
-        user_name=user_name,
-        accessible_data_sources=accessible_sources
+        user_name=user_name, accessible_data_sources=accessible_sources
     )
 
 
 @app.post(
     "/v1/chat/completions",
     response_model=ChatCompletionResponse,
-    summary="Generate a chat completion with data source authorization"
+    summary="Generate a chat completion with data source authorization",
 )
 async def create_chat_completion(request: ChatCompletionRequest):
     """
@@ -314,30 +375,39 @@ async def create_chat_completion(request: ChatCompletionRequest):
     a mock response with detailed metadata about the RAG processing.
     """
     import time
+
     start_time = time.time()
-    
-    print(f"Received request from user '{request.user_name}' for data source '{request.data_source}'")
-    
+
+    print(
+        f"Received request from user '{request.user_name}' for data source '{request.data_source}'"
+    )
+
     # Authorize user for the data source
     authorize_user_for_data_source(request.user_name, request.data_source)
-    
-    retrieved_data = RAG_DATA_DB.get(request.data_source, "No specific data found, but access is permitted.")
-    user_query = next((msg.content for msg in request.messages if msg.role == 'user'), "No user query found.")
-    
+
+    retrieved_data = RAG_DATA_DB.get(
+        request.data_source, "No specific data found, but access is permitted."
+    )
+    user_query = next(
+        (msg.content for msg in request.messages if msg.role == "user"),
+        "No user query found.",
+    )
+
     # Get metadata for this data source
     documents_found = RAG_METADATA_DB.get(request.data_source, [])
-    
+
     # Calculate processing time
     processing_time_ms = int((time.time() - start_time) * 1000)
-    
+
     # Create RAG metadata
     rag_metadata = RAGMetadata(
         query_processing_time_ms=processing_time_ms,
-        total_documents_searched=len(documents_found) + 2,  # Simulate searching more than found
+        total_documents_searched=len(documents_found)
+        + 2,  # Simulate searching more than found
         documents_found=documents_found,
         data_source_name=request.data_source,
         retrieval_method="similarity_search",
-        query_embedding_time_ms=processing_time_ms // 4  # Simulate embedding time
+        query_embedding_time_ms=processing_time_ms // 4,  # Simulate embedding time
     )
 
     response_content = (

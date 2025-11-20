@@ -9,11 +9,11 @@ from domain.sessions.models import Session
 class SessionRepository(Protocol):
     """
     Port for session storage and retrieval.
-    
+
     Abstracts session persistence from the application layer,
     allowing different storage implementations (in-memory, Redis, DB, etc.).
     """
-    
+
     async def get(self, session_id: UUID) -> Optional[Session]:
         """
         Retrieve a session by ID.

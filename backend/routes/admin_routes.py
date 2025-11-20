@@ -56,7 +56,7 @@ def setup_config_overrides() -> None:
     app_settings = config_manager.app_settings
     overrides_root = Path(app_settings.app_config_overrides)
     defaults_root = Path(app_settings.app_config_defaults)
-    
+
     # If relative paths, resolve from project root
     if not overrides_root.is_absolute():
         project_root = Path(__file__).parent.parent.parent
@@ -64,7 +64,7 @@ def setup_config_overrides() -> None:
     if not defaults_root.is_absolute():
         project_root = Path(__file__).parent.parent.parent
         defaults_root = project_root / defaults_root
-    
+
     overrides_root.mkdir(parents=True, exist_ok=True)
     defaults_root.mkdir(parents=True, exist_ok=True)
 
@@ -86,16 +86,20 @@ def setup_config_overrides() -> None:
                     dest = overrides_root / file_path.name
                     try:
                         shutil.copy2(file_path, dest)
-                        logger.info(f"Copied seed config {sanitize_for_logging(str(file_path))} -> {sanitize_for_logging(str(dest))}")
+                        logger.info(
+                            f"Copied seed config {sanitize_for_logging(str(file_path))} -> {sanitize_for_logging(str(dest))}"
+                        )
                     except Exception as e:  # noqa: BLE001
-                        logger.error(f"Failed seeding {sanitize_for_logging(str(file_path))}: {e}")
+                        logger.error(
+                            f"Failed seeding {sanitize_for_logging(str(file_path))}: {e}"
+                        )
             break
 
 
 def get_admin_config_path(filename: str) -> Path:
     # Get config filename mappings from config manager
     app_settings = config_manager.app_settings
-    
+
     # Map standard filenames to potentially overridden ones
     if filename == "messages.txt":
         custom_filename = app_settings.messages_config_file
@@ -107,15 +111,17 @@ def get_admin_config_path(filename: str) -> Path:
         custom_filename = app_settings.llm_config_file
     else:
         custom_filename = filename
-    
+
     # Use same logic as config manager to resolve relative paths from project root
     base = Path(app_settings.app_config_overrides)
-    
+
     # If relative path, resolve from project root (parent of backend directory)
     if not base.is_absolute():
-        project_root = Path(__file__).parent.parent.parent  # Go up from routes/ to backend/ to project root
+        project_root = Path(
+            __file__
+        ).parent.parent.parent  # Go up from routes/ to backend/ to project root
         base = project_root / base
-    
+
     base.mkdir(parents=True, exist_ok=True)
     return base / custom_filename
 
@@ -184,9 +190,9 @@ def _locate_log_file() -> Path:
         Path("logs/app.jsonl"),
         Path("logs/app.log"),
         Path("backend/logs/app.jsonl"),  # legacy
-        Path("backend/logs/app.log"),     # legacy
-        Path("runtime/logs/app.jsonl"),   # legacy
-        Path("runtime/logs/app.log"),     # legacy
+        Path("backend/logs/app.log"),  # legacy
+        Path("runtime/logs/app.jsonl"),  # legacy
+        Path("runtime/logs/app.log"),  # legacy
     ]
     for c in candidates:
         if c.exists():
@@ -214,7 +220,9 @@ async def get_banner_config(admin_user: str = Depends(require_admin)):
         setup_config_overrides()
         messages_file = get_admin_config_path("messages.txt")
         if not messages_file.exists():
-            write_file_content(messages_file, "System status: All services operational\n")
+            write_file_content(
+                messages_file, "System status: All services operational\n"
+            )
         content = get_file_content(messages_file)
         messages = [ln.strip() for ln in content.splitlines() if ln.strip()]
         return {
@@ -259,8 +267,12 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
         return {
             "message": "MCP servers reloaded",
             "servers": list(mcp.clients.keys()),
-            "tool_counts": {k: len(v.get("tools", [])) for k, v in mcp.available_tools.items()},
-            "prompt_counts": {k: len(v.get("prompts", [])) for k, v in mcp.available_prompts.items()},
+            "tool_counts": {
+                k: len(v.get("tools", [])) for k, v in mcp.available_tools.items()
+            },
+            "prompt_counts": {
+                k: len(v.get("prompts", [])) for k, v in mcp.available_prompts.items()
+            },
             "reloaded_by": admin_user,
         }
     except Exception as e:  # noqa: BLE001
@@ -276,7 +288,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         mcp_file = get_admin_config_path("mcp.json")
 #         content = get_file_content(mcp_file)
-        
+
 #         return {
 #             "content": content,
 #             "parsed": json.loads(content),
@@ -297,7 +309,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         mcp_file = get_admin_config_path("mcp.json")
 #         write_file_content(mcp_file, update.content, "json")
-        
+
 #         logger.info(f"MCP configuration updated by {admin_user}")
 #         return {
 #             "message": "MCP configuration updated successfully",
@@ -316,7 +328,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         llm_file = get_admin_config_path("llmconfig.yml")
 #         content = get_file_content(llm_file)
-        
+
 #         return {
 #             "content": content,
 #             "parsed": yaml.safe_load(content),
@@ -337,10 +349,10 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         llm_file = get_admin_config_path("llmconfig.yml")
 #         write_file_content(llm_file, update.content, "yaml")
-        
+
 #         logger.info(f"LLM configuration updated by {admin_user}")
 #         return {
-#             "message": "LLM configuration updated successfully", 
+#             "message": "LLM configuration updated successfully",
 #             "updated_by": admin_user
 #         }
 #     except Exception as e:
@@ -356,7 +368,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         help_file = get_admin_config_path("help-config.json")
 #         content = get_file_content(help_file)
-        
+
 #         return {
 #             "content": content,
 #             "parsed": json.loads(content),
@@ -377,7 +389,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 #     try:
 #         help_file = get_admin_config_path("help-config.json")
 #         write_file_content(help_file, update.content, "json")
-        
+
 #         logger.info(f"Help configuration updated by {admin_user}")
 #         return {
 #             "message": "Help configuration updated successfully",
@@ -390,6 +402,7 @@ async def reload_mcp_servers(admin_user: str = Depends(require_admin)):
 
 # --- Config Viewer ---
 
+
 @admin_router.get("/config/view")
 async def get_all_configs(admin_user: str = Depends(require_admin)):
     """Get all configuration values for admin viewing."""
@@ -398,32 +411,32 @@ async def get_all_configs(admin_user: str = Depends(require_admin)):
         app_settings = config_manager.app_settings
         llm_config = config_manager.llm_config
         mcp_config = config_manager.mcp_config
-        
+
         # Convert app_settings to dict, excluding sensitive fields
         app_settings_dict = app_settings.model_dump()
-        
+
         # Mask sensitive fields
-        sensitive_fields = ['api_key', 'secret', 'password', 'token']
+        sensitive_fields = ["api_key", "secret", "password", "token"]
         for key, value in app_settings_dict.items():
             if any(sensitive in key.lower() for sensitive in sensitive_fields):
                 if isinstance(value, str) and value:
                     app_settings_dict[key] = "***MASKED***"
-        
+
         # Convert LLM config, masking API keys
         llm_config_dict = llm_config.model_dump()
-        if 'models' in llm_config_dict:
-            for model_name, model_config in llm_config_dict['models'].items():
-                if 'api_key' in model_config and model_config['api_key']:
-                    model_config['api_key'] = "***MASKED***"
-        
+        if "models" in llm_config_dict:
+            for model_name, model_config in llm_config_dict["models"].items():
+                if "api_key" in model_config and model_config["api_key"]:
+                    model_config["api_key"] = "***MASKED***"
+
         # Convert MCP config
         mcp_config_dict = mcp_config.model_dump()
-        
+
         return {
             "app_settings": app_settings_dict,
-            "llm_config": llm_config_dict, 
+            "llm_config": llm_config_dict,
             "mcp_config": mcp_config_dict,
-            "config_validation": config_manager.validate_config()
+            "config_validation": config_manager.validate_config(),
         }
     except Exception as e:
         logger.error(f"Error getting config view: {e}")
@@ -431,6 +444,7 @@ async def get_all_configs(admin_user: str = Depends(require_admin)):
 
 
 # --- Log Management ---
+
 
 @admin_router.get("/logs/viewer")
 async def get_enhanced_logs(
@@ -447,6 +461,7 @@ async def get_enhanced_logs(
             raise HTTPException(status_code=404, detail="Log file not found")
 
         from collections import deque
+
         entries: List[Dict[str, Any]] = []
         modules: set[str] = set()
         levels: set[str] = set()
@@ -455,6 +470,7 @@ async def get_enhanced_logs(
             with log_file.open("r", encoding="utf-8") as f:
                 recent_lines = deque(f, maxlen=lines + 200)
             import re
+
             pattern = re.compile(
                 r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[,\s-]*(\w+)[,\s-]*([^-]*)[,\s-]*(.*)"
             )
@@ -475,7 +491,9 @@ async def get_enhanced_logs(
                         "span_id": entry.get("span_id", ""),
                         "line": entry.get("line", ""),
                         "thread_name": entry.get("thread_name", ""),
-                        "extras": {k: v for k, v in entry.items() if k.startswith("extra_")},
+                        "extras": {
+                            k: v for k, v in entry.items() if k.startswith("extra_")
+                        },
                     }
                 except json.JSONDecodeError:
                     m = pattern.match(raw)
@@ -560,12 +578,12 @@ async def clear_app_logs(admin_user: str = Depends(require_admin)):
         candidates = [
             base / "app.jsonl",
             base / "app.log",
-            Path("logs/app.jsonl"),        # explicit root fallback
-            Path("logs/app.log"),          # explicit root fallback
+            Path("logs/app.jsonl"),  # explicit root fallback
+            Path("logs/app.log"),  # explicit root fallback
             Path("backend/logs/app.jsonl"),  # legacy
-            Path("backend/logs/app.log"),     # legacy
-            Path("runtime/logs/app.jsonl"),   # legacy
-            Path("runtime/logs/app.log"),     # legacy,
+            Path("backend/logs/app.log"),  # legacy
+            Path("runtime/logs/app.jsonl"),  # legacy
+            Path("runtime/logs/app.log"),  # legacy,
         ]
         cleared: List[str] = []
         for f in candidates:
@@ -576,9 +594,17 @@ async def clear_app_logs(admin_user: str = Depends(require_admin)):
                 except Exception as e:  # noqa: BLE001
                     logger.error(f"Failed clearing {f}: {e}")
         if not cleared:
-            return {"message": "No log files found to clear", "cleared_by": admin_user, "files_cleared": []}
+            return {
+                "message": "No log files found to clear",
+                "cleared_by": admin_user,
+                "files_cleared": [],
+            }
         logger.info(f"Log files cleared by {admin_user}: {cleared}")
-        return {"message": "Log files cleared successfully", "cleared_by": admin_user, "files_cleared": cleared}
+        return {
+            "message": "Log files cleared successfully",
+            "cleared_by": admin_user,
+            "files_cleared": cleared,
+        }
     except Exception as e:  # noqa: BLE001
         logger.error(f"Error clearing logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -608,6 +634,7 @@ async def download_logs(admin_user: str = Depends(require_admin)):
 
 
 # --- System Status (minimal) ---
+
 
 @admin_router.get("/system-status")
 async def get_system_status(admin_user: str = Depends(require_admin)):
@@ -652,7 +679,11 @@ async def get_system_status(admin_user: str = Depends(require_admin)):
             },
         ]
 
-        overall = "healthy" if all(c["status"] == "healthy" for c in components) else "warning"
+        overall = (
+            "healthy"
+            if all(c["status"] == "healthy" for c in components)
+            else "warning"
+        )
         return {
             "overall_status": overall,
             "components": components,

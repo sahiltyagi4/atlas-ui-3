@@ -18,8 +18,21 @@ class FakeMCP:
     def __init__(self):
         # Simulate available tools config per server
         self.available_tools: Dict[str, Dict[str, Any]] = {
-            "docsRag": {"tools": [FakeTool("rag_discover_resources"), FakeTool("rag_get_raw_results")], "config": {"ui": {"icon": "book"}}},
-            "searchRag": {"tools": [FakeTool("rag_discover_resources"), FakeTool("rag_get_raw_results"), FakeTool("rag_get_synthesized_results")], "config": {}},
+            "docsRag": {
+                "tools": [
+                    FakeTool("rag_discover_resources"),
+                    FakeTool("rag_get_raw_results"),
+                ],
+                "config": {"ui": {"icon": "book"}},
+            },
+            "searchRag": {
+                "tools": [
+                    FakeTool("rag_discover_resources"),
+                    FakeTool("rag_get_raw_results"),
+                    FakeTool("rag_get_synthesized_results"),
+                ],
+                "config": {},
+            },
             "misc": {"tools": [FakeTool("other")], "config": {}},
         }
 
@@ -29,38 +42,70 @@ class FakeMCP:
             return ["docsRag", "searchRag"]
         return list(self.available_tools.keys())
 
-    async def call_tool(self, server_name: str, tool_name: str, arguments: Dict[str, Any], *_, **__):
+    async def call_tool(
+        self, server_name: str, tool_name: str, arguments: Dict[str, Any], *_, **__
+    ):
         # Return minimal v2-structured payloads
         if tool_name == "rag_discover_resources":
             if server_name == "docsRag":
-                return types.SimpleNamespace(structured_content={
-                    "results": {"resources": [
-                        {"id": "handbook", "name": "Employee Handbook", "authRequired": True, "groups": ["hr"], "defaultSelected": True},
-                        {"id": "legal", "name": "Legal Docs", "authRequired": True, "groups": ["legal"]},
-                    ]}
-                })
+                return types.SimpleNamespace(
+                    structured_content={
+                        "results": {
+                            "resources": [
+                                {
+                                    "id": "handbook",
+                                    "name": "Employee Handbook",
+                                    "authRequired": True,
+                                    "groups": ["hr"],
+                                    "defaultSelected": True,
+                                },
+                                {
+                                    "id": "legal",
+                                    "name": "Legal Docs",
+                                    "authRequired": True,
+                                    "groups": ["legal"],
+                                },
+                            ]
+                        }
+                    }
+                )
             if server_name == "searchRag":
-                return types.SimpleNamespace(structured_content={
-                    "results": {"resources": [
-                        {"id": "kb", "name": "KB", "authRequired": True, "groups": ["kb"]}
-                    ]}
-                })
+                return types.SimpleNamespace(
+                    structured_content={
+                        "results": {
+                            "resources": [
+                                {
+                                    "id": "kb",
+                                    "name": "KB",
+                                    "authRequired": True,
+                                    "groups": ["kb"],
+                                }
+                            ]
+                        }
+                    }
+                )
         if tool_name == "rag_get_raw_results":
             q = arguments.get("query")
             srcs = arguments.get("sources", [])
             hits = []
             for i, s in enumerate(srcs):
-                hits.append({
-                    "id": f"{server_name}-{s}-{i}",
-                    "score": 1.0 - i * 0.01,
-                    "resourceId": f"{server_name}:{s}",
-                    "title": f"{q} in {s}",
-                })
+                hits.append(
+                    {
+                        "id": f"{server_name}-{s}-{i}",
+                        "score": 1.0 - i * 0.01,
+                        "resourceId": f"{server_name}:{s}",
+                        "title": f"{q} in {s}",
+                    }
+                )
             return types.SimpleNamespace(structured_content={"results": {"hits": hits}})
         if tool_name == "rag_get_synthesized_results":
-            return types.SimpleNamespace(structured_content={
-                "results": {"answer": f"Synth for {arguments.get('query')} by {server_name}"}
-            })
+            return types.SimpleNamespace(
+                structured_content={
+                    "results": {
+                        "answer": f"Synth for {arguments.get('query')} by {server_name}"
+                    }
+                }
+            )
         return types.SimpleNamespace(structured_content={})
 
 

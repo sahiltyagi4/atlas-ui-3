@@ -26,7 +26,7 @@ async def long_task(
     """Execute long-running operations with real-time progress tracking and user feedback capabilities.
 
     This advanced progress monitoring tool demonstrates professional long-running task management:
-    
+
     **Progress Tracking Features:**
     - Real-time progress updates with percentage completion
     - Configurable update intervals for optimal user experience
@@ -165,4 +165,3 @@ async def status_updates(
 
 if __name__ == "__main__":
     mcp.run()
-

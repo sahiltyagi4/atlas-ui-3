@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 class PlainModeRunner:
     """
     Runner for plain LLM mode.
-    
+
     Executes simple LLM calls without tools or RAG integration.
     """
-    
+
     def __init__(
         self,
         llm: LLMProtocol,
@@ -26,14 +26,14 @@ class PlainModeRunner:
     ):
         """
         Initialize plain mode runner.
-        
+
         Args:
             llm: LLM protocol implementation
             event_publisher: Event publisher for UI updates
         """
         self.llm = llm
         self.event_publisher = event_publisher
-    
+
     async def run(
         self,
         session: Session,
@@ -43,23 +43,24 @@ class PlainModeRunner:
     ) -> Dict[str, Any]:
         """
         Execute plain LLM mode.
-        
+
         Args:
             session: Current chat session
             model: LLM model to use
             messages: Message history
             temperature: LLM temperature parameter
-            
+
         Returns:
             Response dictionary
         """
         # Call LLM
-        response_content = await self.llm.call_plain(model, messages, temperature=temperature)
+        response_content = await self.llm.call_plain(
+            model, messages, temperature=temperature
+        )
 
         # Add assistant message to history
         assistant_message = Message(
-            role=MessageRole.ASSISTANT,
-            content=response_content
+            role=MessageRole.ASSISTANT, content=response_content
         )
         session.history.add_message(assistant_message)
 

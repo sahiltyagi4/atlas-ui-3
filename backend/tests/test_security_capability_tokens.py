@@ -28,6 +28,7 @@ def test_download_rejects_invalid_or_expired_token(monkeypatch):
     client = TestClient(app)
 
     from infrastructure.app_factory import app_factory
+
     s3 = app_factory.get_file_storage()
 
     async def fake_get_file(user, key):

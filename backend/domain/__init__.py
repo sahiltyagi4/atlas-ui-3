@@ -9,7 +9,7 @@ from .errors import (
     AuthorizationError,
     ConfigurationError,
     LLMError,
-    ToolError
+    ToolError,
 )
 
 from .messages.models import (
@@ -18,7 +18,7 @@ from .messages.models import (
     MessageType,
     ToolCall,
     ToolResult,
-    ConversationHistory
+    ConversationHistory,
 )
 
 from .sessions.models import Session

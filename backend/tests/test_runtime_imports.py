@@ -42,7 +42,9 @@ def test_backend_dir_imports_work_without_project_root_in_path():
         print("STDOUT:\n" + proc.stdout)
         print("STDERR:\n" + proc.stderr)
 
-    assert proc.returncode == 0, "Subprocess failed to import and initialize config from backend dir"
+    assert proc.returncode == 0, (
+        "Subprocess failed to import and initialize config from backend dir"
+    )
     # Guard against the specific regression seen in runtime warnings
     assert "No module named 'backend'" not in (proc.stdout + proc.stderr)
     assert "Could not validate LLM compliance levels" not in (proc.stdout + proc.stderr)

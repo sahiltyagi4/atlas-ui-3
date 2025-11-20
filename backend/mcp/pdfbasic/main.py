@@ -27,10 +27,12 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP("PDF_Analyzer")
 
 
-def _analyze_pdf_content(instructions: str, filename: str, original_filename: Optional[str] = None) -> Dict[str, Any]:
+def _analyze_pdf_content(
+    instructions: str, filename: str, original_filename: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Core PDF analysis logic that can be reused by multiple tools.
-    
+
     Args:
         instructions: Instructions for the tool, not used in this implementation.
         filename: The name of the file, which must have a '.pdf' extension.
@@ -43,16 +45,23 @@ def _analyze_pdf_content(instructions: str, filename: str, original_filename: Op
         # print the instructions.
         logger.info(f"Instructions: {instructions}")
         # 1. Validate that the filename is for a PDF
-        if not (filename.lower().endswith('.pdf') or (original_filename and original_filename.lower().endswith('.pdf'))):
-            return {"results": {"error": "Invalid file type. This tool only accepts PDF files."}}
+        if not (
+            filename.lower().endswith(".pdf")
+            or (original_filename and original_filename.lower().endswith(".pdf"))
+        ):
+            return {
+                "results": {
+                    "error": "Invalid file type. This tool only accepts PDF files."
+                }
+            }
 
         # 2. Decode the Base64 data and read the PDF content
         # Check if filename is a URL (absolute or relative)
         is_url = (
-            filename.startswith("http://") or
-            filename.startswith("https://") or
-            filename.startswith("/api/") or
-            filename.startswith("/")
+            filename.startswith("http://")
+            or filename.startswith("https://")
+            or filename.startswith("/api/")
+            or filename.startswith("/")
         )
 
         if is_url:
@@ -73,7 +82,7 @@ def _analyze_pdf_content(instructions: str, filename: str, original_filename: Op
             # Assume it's base64-encoded data
             decoded_bytes = base64.b64decode(filename)
             pdf_stream = io.BytesIO(decoded_bytes)
-        
+
         reader = PdfReader(pdf_stream)
 
         full_text = ""
@@ -90,13 +99,13 @@ def _analyze_pdf_content(instructions: str, filename: str, original_filename: Op
                     "status": "Success",
                     "message": "PDF contained no extractable text.",
                     "total_word_count": 0,
-                    "top_100_words": {}
+                    "top_100_words": {},
                 }
             }
 
         # 3. Process the text to get a word list and count
         # This regex finds all word-like sequences, ignoring case
-        words = re.findall(r'\b\w+\b', full_text.lower())
+        words = re.findall(r"\b\w+\b", full_text.lower())
         total_word_count = len(words)
 
         # 4. Count word frequencies and get the top 100
@@ -110,13 +119,14 @@ def _analyze_pdf_content(instructions: str, filename: str, original_filename: Op
                 "operation": "pdf_analysis",
                 "filename": original_filename or filename,
                 "total_word_count": total_word_count,
-                "top_100_words": top_100_words_dict
+                "top_100_words": top_100_words_dict,
             }
         }
 
     except Exception as e:
         # print traceback for debugging
         import traceback
+
         traceback.print_exc()
         # 6. Return an error message if something goes wrong
         return {"results": {"error": f"PDF analysis failed: {str(e)}"}}
@@ -124,78 +134,82 @@ def _analyze_pdf_content(instructions: str, filename: str, original_filename: Op
 
 @mcp.tool
 def analyze_pdf(
-    instructions: Annotated[str, "Instructions for the tool, not used in this implementation"],
-    filename: Annotated[str, "The name of the file, which must have a '.pdf' extension"],
-    original_filename: Optional[str] = None
+    instructions: Annotated[
+        str, "Instructions for the tool, not used in this implementation"
+    ],
+    filename: Annotated[
+        str, "The name of the file, which must have a '.pdf' extension"
+    ],
+    original_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Extract and analyze text content from PDF documents with comprehensive word frequency analysis.
+        Extract and analyze text content from PDF documents with comprehensive word frequency analysis.
 
-<<<<<<< HEAD
-    This  PDF processing tool provides detailed text analytics for PDF documents:
-=======
-    This PDF processing tool provides detailed text analytics for PDF documents:
->>>>>>> main
-    
-    **PDF Text Extraction:**
-    - Extracts text from all pages in PDF documents
-    - Handles various PDF formats and structures
-    - Works with both text-based and scanned PDFs (text extraction only)
-    - Preserves document structure and content flow
+    <<<<<<< HEAD
+        This  PDF processing tool provides detailed text analytics for PDF documents:
+    =======
+        This PDF processing tool provides detailed text analytics for PDF documents:
+    >>>>>>> main
 
-    **Text Analysis Features:**
-    - Complete word count across entire document
-    - Top 100 most frequently used words identification
-    - Case-insensitive word analysis for accurate frequency counting
-    - Word pattern recognition and linguistic analysis
-    - Document length and content density assessment
+        **PDF Text Extraction:**
+        - Extracts text from all pages in PDF documents
+        - Handles various PDF formats and structures
+        - Works with both text-based and scanned PDFs (text extraction only)
+        - Preserves document structure and content flow
 
-    **Content Processing:**
-    - Intelligent text cleaning and normalization
-    - Punctuation and formatting handling
-    - Multi-language text support
-    - Special character and encoding management
+        **Text Analysis Features:**
+        - Complete word count across entire document
+        - Top 100 most frequently used words identification
+        - Case-insensitive word analysis for accurate frequency counting
+        - Word pattern recognition and linguistic analysis
+        - Document length and content density assessment
 
-    **Analytics Insights:**
-    - Document vocabulary richness and complexity
-    - Key topic identification through word frequency
-    - Content themes and focus areas analysis
-    - Writing style and language pattern recognition
-    - Document structure and organization assessment
+        **Content Processing:**
+        - Intelligent text cleaning and normalization
+        - Punctuation and formatting handling
+        - Multi-language text support
+        - Special character and encoding management
 
-    **Use Cases:**
-    - Academic paper and research document analysis
-    - Legal document keyword extraction and analysis
-    - Content marketing and SEO keyword research
-    - Document classification and categorization
-    - Research literature review and summarization
-    - Contract and agreement content analysis
+        **Analytics Insights:**
+        - Document vocabulary richness and complexity
+        - Key topic identification through word frequency
+        - Content themes and focus areas analysis
+        - Writing style and language pattern recognition
+        - Document structure and organization assessment
 
-    **Supported PDF Types:**
-    - Research papers, reports, and academic documents
-    - Business documents, contracts, and agreements
-    - Marketing materials and content documents
-    - Technical documentation and manuals
-    - Legal documents and regulatory filings
+        **Use Cases:**
+        - Academic paper and research document analysis
+        - Legal document keyword extraction and analysis
+        - Content marketing and SEO keyword research
+        - Document classification and categorization
+        - Research literature review and summarization
+        - Contract and agreement content analysis
 
-    **Output Format:**
-    - Structured word frequency data
-    - Total document word count statistics
-    - Top 100 words with occurrence frequencies
-    - Document metadata and processing information
+        **Supported PDF Types:**
+        - Research papers, reports, and academic documents
+        - Business documents, contracts, and agreements
+        - Marketing materials and content documents
+        - Technical documentation and manuals
+        - Legal documents and regulatory filings
 
-    Args:
-        instructions: Processing instructions or requirements (currently not used)
-        filename: PDF file name (must end with .pdf extension)
-        original_filename: The original name of the file.
+        **Output Format:**
+        - Structured word frequency data
+        - Total document word count statistics
+        - Top 100 words with occurrence frequencies
+        - Document metadata and processing information
 
-    Returns:
-        Dictionary containing:
-        - operation: Processing type confirmation
-        - filename: Source PDF file name
-        - total_word_count: Complete document word count
-        - top_100_words: Dictionary of most frequent words with counts
-        Or error message if PDF cannot be processed or contains no extractable text
+        Args:
+            instructions: Processing instructions or requirements (currently not used)
+            filename: PDF file name (must end with .pdf extension)
+            original_filename: The original name of the file.
+
+        Returns:
+            Dictionary containing:
+            - operation: Processing type confirmation
+            - filename: Source PDF file name
+            - total_word_count: Complete document word count
+            - top_100_words: Dictionary of most frequent words with counts
+            Or error message if PDF cannot be processed or contains no extractable text
     """
     logger.info("Step 8: Entering analyze_pdf tool")
     return _analyze_pdf_content(instructions, filename, original_filename)
@@ -203,15 +217,19 @@ def analyze_pdf(
 
 @mcp.tool
 def generate_report_about_pdf(
-    instructions: Annotated[str, "Instructions for the tool, not used in this implementation"],
-    filename: Annotated[str, "The name of the file, which must have a '.pdf' extension"],
-    original_filename: Optional[str] = None
+    instructions: Annotated[
+        str, "Instructions for the tool, not used in this implementation"
+    ],
+    filename: Annotated[
+        str, "The name of the file, which must have a '.pdf' extension"
+    ],
+    original_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create comprehensive PDF analysis reports with professional formatting and detailed word frequency insights.
 
     This advanced PDF reporting tool combines text analysis with professional document generation:
-    
+
     **Complete PDF Analysis Workflow:**
     - Performs full text extraction and word frequency analysis
     - Generates professional analysis reports in PDF format
@@ -295,13 +313,17 @@ def generate_report_about_pdf(
         c.setFont("Helvetica-Bold", 12)
         c.drawString(1 * inch, height - 1.5 * inch, "Document:")
         c.setFont("Helvetica", 10)
-        c.drawString(1.5 * inch, height - 1.5 * inch, results_data.get("filename", "Unknown"))
+        c.drawString(
+            1.5 * inch, height - 1.5 * inch, results_data.get("filename", "Unknown")
+        )
 
         # Total word count
         c.setFont("Helvetica-Bold", 12)
         c.drawString(1 * inch, height - 2 * inch, "Total Words:")
         c.setFont("Helvetica", 10)
-        c.drawString(1.5 * inch, height - 2 * inch, str(results_data.get("total_word_count", 0)))
+        c.drawString(
+            1.5 * inch, height - 2 * inch, str(results_data.get("total_word_count", 0))
+        )
 
         # Top 100 words header
         c.setFont("Helvetica-Bold", 12)
@@ -345,7 +367,7 @@ def generate_report_about_pdf(
 
         # Get PDF bytes and encode to base64
         pdf_bytes = pdf_buffer.getvalue()
-        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
         # --- 3. Return the structured response (v2 MCP compliant) ---
         report_name = f"analysis_report_{results_data.get('filename', 'document').replace('.pdf', '')}.pdf"
@@ -356,7 +378,7 @@ def generate_report_about_pdf(
                 "status": "Success",
                 "message": f"Generated analysis report for {results_data.get('filename', 'document')}",
                 "total_word_count": results_data.get("total_word_count", 0),
-                "words_analyzed": len(top_100_words)
+                "words_analyzed": len(top_100_words),
             },
             "artifacts": [
                 {
@@ -364,30 +386,26 @@ def generate_report_about_pdf(
                     "b64": pdf_base64,
                     "mime": "application/pdf",
                     "size": len(pdf_bytes),
-                    "description": "PDF analysis report with word frequency statistics"
+                    "description": "PDF analysis report with word frequency statistics",
                 }
             ],
             "display": {
                 "open_canvas": True,
                 "primary_file": report_name,
                 "mode": "replace",
-                "viewer_hint": "pdf"
+                "viewer_hint": "pdf",
             },
             "meta_data": {
                 "source_file": results_data.get("filename", "Unknown"),
-                "total_words": results_data.get("total_word_count", 0)
-            }
+                "total_words": results_data.get("total_word_count", 0),
+            },
         }
 
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        return {
-            "results": {
-                "error": f"Report generation failed: {str(e)}"
-            }
-        }
 
+        traceback.print_exc()
+        return {"results": {"error": f"Report generation failed: {str(e)}"}}
 
 
 if __name__ == "__main__":

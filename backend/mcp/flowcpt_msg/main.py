@@ -12,18 +12,19 @@ from flowcept.flowceptor.consumers.base_consumer import BaseConsumer
 
 
 class FlowceptConsumer(BaseConsumer):
-
     def __init__(self):
         super().__init__()
         self.event = threading.Event()
         self.msg_result = None
 
     def message_handler(self, msg_obj: Dict) -> bool:
-        if msg_obj.get('type', '') == 'task':
-            print(f"Received task: subtype={msg_obj.get('subtype', '')} activity_id={msg_obj.get('activity_id', '')}")
+        if msg_obj.get("type", "") == "task":
+            print(
+                f"Received task: subtype={msg_obj.get('subtype', '')} activity_id={msg_obj.get('activity_id', '')}"
+            )
             # FILTER BY subtypes:
             # agent_task, call_agent_task, data_message
-            if msg_obj.get('subtype', '') in ["agent_task", "call_agent_task"]:
+            if msg_obj.get("subtype", "") in ["agent_task", "call_agent_task"]:
                 self.msg_result = msg_obj
                 self.event.set()
                 return True
@@ -35,9 +36,9 @@ class FlowceptConsumer(BaseConsumer):
 
 mcp = FastMCP(name="MCP_Flowcept")
 
+
 @mcp.tool
 def get_flowcept_msg() -> Dict[str, Any]:
-
     flowcept_communicator = FlowceptConsumer()
     flowcept_communicator.event.clear()
     flowcept_communicator.start(threaded=True)
@@ -48,6 +49,7 @@ def get_flowcept_msg() -> Dict[str, Any]:
     return {
         "results": flowcept_communicator.msg_result,
     }
+
 
 if __name__ == "__main__":
     mcp.run()

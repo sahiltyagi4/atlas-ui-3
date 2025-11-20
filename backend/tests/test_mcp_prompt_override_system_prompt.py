@@ -25,28 +25,52 @@ async def test_selected_mcp_prompt_overrides_system_prompt(monkeypatch):
             captured["messages"] = messages
             return "ok"
 
-        async def call_with_tools(self, model_name, messages, tools_schema, tool_choice="auto", temperature=0.7):
+        async def call_with_tools(
+            self,
+            model_name,
+            messages,
+            tools_schema,
+            tool_choice="auto",
+            temperature=0.7,
+        ):
             captured["messages"] = messages
+
             class R:
                 def __init__(self):
                     self.content = "ok"
                     self.tool_calls = []
+
                 def has_tool_calls(self):
                     return False
+
             return R()
 
-        async def call_with_rag(self, model_name, messages, data_sources, user_email, temperature=0.7):
+        async def call_with_rag(
+            self, model_name, messages, data_sources, user_email, temperature=0.7
+        ):
             captured["messages"] = messages
             return "ok"
 
-        async def call_with_rag_and_tools(self, model_name, messages, data_sources, tools_schema, user_email, tool_choice="auto", temperature=0.7):
+        async def call_with_rag_and_tools(
+            self,
+            model_name,
+            messages,
+            data_sources,
+            tools_schema,
+            user_email,
+            tool_choice="auto",
+            temperature=0.7,
+        ):
             captured["messages"] = messages
+
             class R:
                 def __init__(self):
                     self.content = "ok"
                     self.tool_calls = []
+
                 def has_tool_calls(self):
                     return False
+
             return R()
 
     # Create a chat service wired with dummy LLM
@@ -62,6 +86,7 @@ async def test_selected_mcp_prompt_overrides_system_prompt(monkeypatch):
 
     # Create a session id
     import uuid
+
     session_id = uuid.uuid4()
 
     # Send a message with selected prompt
@@ -82,7 +107,11 @@ async def test_selected_mcp_prompt_overrides_system_prompt(monkeypatch):
     # Validate we injected a system message first
     msgs = captured.get("messages")
     assert msgs, "LLM was not called or messages not captured"
-    assert msgs[0]["role"] == "system", f"Expected first message to be system, got: {msgs[0]}"
+    assert msgs[0]["role"] == "system", (
+        f"Expected first message to be system, got: {msgs[0]}"
+    )
     # The expert_dog_trainer prompt includes key phrase "expert dog trainer"
     first_content = msgs[0]["content"].lower()
-    assert "dog trainer" in first_content or "canine" in first_content, "Injected system prompt content not found"
+    assert "dog trainer" in first_content or "canine" in first_content, (
+        "Injected system prompt content not found"
+    )

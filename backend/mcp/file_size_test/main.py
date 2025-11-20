@@ -20,7 +20,7 @@ mcp = FastMCP("File_Size_Test")
 @mcp.tool
 def process_file_demo(
     filename: Annotated[str, "The file to process (URL or base64)"],
-    username: Annotated[str, "Username for auditing"] = None
+    username: Annotated[str, "Username for auditing"] = None,
 ) -> Dict[str, Any]:
     """
     Demo tool that processes a file and returns a new transformed file.
@@ -60,10 +60,10 @@ def process_file_demo(
     try:
         # Get the file content (reuse logic from get_file_size)
         is_url = (
-            filename.startswith("http://") or
-            filename.startswith("https://") or
-            filename.startswith("/api/") or
-            filename.startswith("/")
+            filename.startswith("http://")
+            or filename.startswith("https://")
+            or filename.startswith("/api/")
+            or filename.startswith("/")
         )
         logger.debug(f"is_url determined as: {is_url}")
 
@@ -77,7 +77,7 @@ def process_file_demo(
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             file_bytes = response.content
-            original_filename = filename.split('/')[-1] or "processed_file.txt"
+            original_filename = filename.split("/")[-1] or "processed_file.txt"
         else:
             # Assume base64
             logger.info("Decoding base64 for file processing")
@@ -89,9 +89,9 @@ def process_file_demo(
         # Process the file (demo: convert text to uppercase)
         try:
             # Try to decode as text for processing
-            original_text = file_bytes.decode('utf-8')
+            original_text = file_bytes.decode("utf-8")
             processed_text = original_text.upper()
-            processed_bytes = processed_text.encode('utf-8')
+            processed_bytes = processed_text.encode("utf-8")
             processed_mime = "text/plain"
             description = "Processed text (converted to uppercase)"
         except UnicodeDecodeError:
@@ -101,7 +101,7 @@ def process_file_demo(
             description = "Processed binary file (demo modification)"
 
         # Create artifact
-        processed_b64 = base64.b64encode(processed_bytes).decode('ascii')
+        processed_b64 = base64.b64encode(processed_bytes).decode("ascii")
         new_filename = f"processed_{original_filename}"
 
         # Create display hints
@@ -109,7 +109,7 @@ def process_file_demo(
             "open_canvas": True,
             "primary_file": new_filename,
             "mode": "replace",
-            "viewer_hint": "auto"
+            "viewer_hint": "auto",
         }
 
         result = {
@@ -119,14 +119,16 @@ def process_file_demo(
                 "processed_filename": new_filename,
                 "original_size": len(file_bytes),
                 "processed_size": len(processed_bytes),
-                "processing_type": "text_uppercase" if 'original_text' in locals() else "binary_demo",
-                "status": "success"
+                "processing_type": "text_uppercase"
+                if "original_text" in locals()
+                else "binary_demo",
+                "status": "success",
             },
             "meta_data": {
                 "is_error": False,
                 "processed_by": "process_file_demo_v2",
                 "username": username,
-                "mime_type": processed_mime
+                "mime_type": processed_mime,
             },
             "artifacts": [
                 {
@@ -135,10 +137,10 @@ def process_file_demo(
                     "mime": processed_mime,
                     "size": len(processed_bytes),
                     "description": description,
-                    "viewer": "auto"
+                    "viewer": "auto",
                 }
             ],
-            "display": display_hints
+            "display": display_hints,
         }
         logger.debug(f"About to return processed file result: {result['results']}")
         return result
@@ -149,20 +151,20 @@ def process_file_demo(
             "results": {
                 "operation": "process_file_demo",
                 "error": f"File processing failed: {str(e)}",
-                "filename": filename
+                "filename": filename,
             },
             "meta_data": {
                 "is_error": True,
                 "error_type": type(e).__name__,
-                "username": username
-            }
+                "username": username,
+            },
         }
         return error_result
 
 
 @mcp.tool
 def get_file_size(
-    filename: Annotated[str, "The file to check (URL or base64)"]
+    filename: Annotated[str, "The file to check (URL or base64)"],
 ) -> Dict[str, Any]:
     """
     Test file transfer by returning the size of the transferred file.
@@ -198,14 +200,16 @@ def get_file_size(
         Or error message if file cannot be accessed
     """
     logger.debug(f"get_file_size called with filename: {filename}")
-    logger.debug(f"filename type: {type(filename)}, length: {len(filename) if filename else 0}")
+    logger.debug(
+        f"filename type: {type(filename)}, length: {len(filename) if filename else 0}"
+    )
     try:
         # Check if filename is a URL (absolute or relative)
         is_url = (
-            filename.startswith("http://") or
-            filename.startswith("https://") or
-            filename.startswith("/api/") or
-            filename.startswith("/")
+            filename.startswith("http://")
+            or filename.startswith("https://")
+            or filename.startswith("/api/")
+            or filename.startswith("/")
         )
         logger.debug(f"is_url determined as: {is_url}")
 
@@ -214,7 +218,9 @@ def get_file_size(
             if filename.startswith("/"):
                 backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                 url = f"{backend_url}{filename}"
-                logger.debug(f"Constructing URL from relative path: {filename} -> {url}")
+                logger.debug(
+                    f"Constructing URL from relative path: {filename} -> {url}"
+                )
             else:
                 url = filename
                 logger.debug(f"Using absolute URL: {url}")
@@ -225,13 +231,17 @@ def get_file_size(
             logger.debug(f"HTTP response status: {response.status_code}")
             response.raise_for_status()
             file_bytes = response.content
-            logger.debug(f"Successfully downloaded file content, length: {len(file_bytes)} bytes")
+            logger.debug(
+                f"Successfully downloaded file content, length: {len(file_bytes)} bytes"
+            )
         else:
             # Assume it's base64-encoded data
             logger.debug("Treating input as base64 data, attempting to decode")
             logger.info("Decoding base64 file data")
             file_bytes = base64.b64decode(filename)
-            logger.debug(f"Successfully decoded base64 data, length: {len(file_bytes)} bytes")
+            logger.debug(
+                f"Successfully decoded base64 data, length: {len(file_bytes)} bytes"
+            )
 
         # Calculate file size
         size_bytes = len(file_bytes)
@@ -244,28 +254,27 @@ def get_file_size(
                 "filename": filename,
                 "size_bytes": size_bytes,
                 "size_human": size_human,
-                "status": "success"
+                "status": "success",
             },
             "meta_data": {
                 "is_error": False,
-                "transfer_method": "url" if is_url else "base64"
-            }
+                "transfer_method": "url" if is_url else "base64",
+            },
         }
         logger.debug(f"About to return success result: {result}")
         return result
 
     except Exception as e:
-        logger.exception(f"Exception occurred while processing file: {str(e)} (type: {type(e).__name__}, filename: {filename})")
+        logger.exception(
+            f"Exception occurred while processing file: {str(e)} (type: {type(e).__name__}, filename: {filename})"
+        )
         error_result = {
             "results": {
                 "operation": "get_file_size",
                 "error": f"File size check failed: {str(e)}",
-                "filename": filename
+                "filename": filename,
             },
-            "meta_data": {
-                "is_error": True,
-                "error_type": type(e).__name__
-            }
+            "meta_data": {"is_error": True, "error_type": type(e).__name__},
         }
         logger.debug(f"About to return error result: {error_result}")
         return error_result
@@ -273,7 +282,7 @@ def get_file_size(
 
 def _format_size(size_bytes: int) -> str:
     """Format file size in human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes < 1024.0:
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024.0

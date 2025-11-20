@@ -18,4 +18,6 @@ async def test_mcp_prompts_discovery_includes_expert_dog_trainer():
     prompts = server_data.get("prompts", [])
     names = {getattr(p, "name", None) for p in prompts}
 
-    assert "expert_dog_trainer" in names, f"expert_dog_trainer not in discovered prompts: {names}"
+    assert "expert_dog_trainer" in names, (
+        f"expert_dog_trainer not in discovered prompts: {names}"
+    )

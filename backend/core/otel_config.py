@@ -37,7 +37,9 @@ class JSONFormatter(logging.Formatter):
                 span_id = f"{sc.span_id:016x}"
 
         entry: Dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -56,9 +58,27 @@ class JSONFormatter(logging.Formatter):
             entry["exception"] = self.formatException(record.exc_info)
 
         excluded = {
-            "name","msg","args","levelname","levelno","pathname","filename","module","lineno",
-            "funcName","created","msecs","relativeCreated","thread","threadName","processName","process",
-            "exc_info","exc_text","stack_info","getMessage"
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "getMessage",
         }
         for k, v in record.__dict__.items():
             if k not in excluded:
@@ -69,7 +89,9 @@ class JSONFormatter(logging.Formatter):
 class OpenTelemetryConfig:
     """Configure OpenTelemetry + structured logging."""
 
-    def __init__(self, service_name: str = "atlas-ui-3-backend", service_version: str = "1.0.0") -> None:
+    def __init__(
+        self, service_name: str = "atlas-ui-3-backend", service_version: str = "1.0.0"
+    ) -> None:
         self.service_name = service_name
         self.service_version = service_version
         self.is_development = self._is_development()
@@ -88,32 +110,34 @@ class OpenTelemetryConfig:
         """Get logs directory from config manager or default to project_root/logs."""
         try:
             from modules.config import config_manager
+
             if config_manager.app_settings.app_log_dir:
                 return Path(config_manager.app_settings.app_log_dir)
-        except Exception:            
+        except Exception:
             pass
         # Fallback: project_root/logs
         project_root = Path(__file__).resolve().parents[2]
         return project_root / "logs"
-    
+
     def _is_development(self) -> bool:
         try:
             from modules.config import config_manager
+
             settings = config_manager.app_settings
-            return (
-                settings.debug_mode
-                or settings.environment.lower() in {"dev", "development"}
-            )
+            return settings.debug_mode or settings.environment.lower() in {
+                "dev",
+                "development",
+            }
         except Exception:
             # Fallback to environment variables if config not available
-            return (
-                os.getenv("DEBUG_MODE", "false").lower() == "true"
-                or os.getenv("ENVIRONMENT", "production").lower() in {"dev", "development"}
-            )
+            return os.getenv("DEBUG_MODE", "false").lower() == "true" or os.getenv(
+                "ENVIRONMENT", "production"
+            ).lower() in {"dev", "development"}
 
     def _get_log_level(self) -> int:
         try:
             from modules.config import config_manager
+
             level_name = config_manager.app_settings.log_level.upper()
         except Exception:
             # Fallback to environment variable if config not available
@@ -145,7 +169,11 @@ class OpenTelemetryConfig:
 
         if self.is_development:
             console = logging.StreamHandler()
-            console.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+            console.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+            )
             console.setLevel(logging.WARNING)
             root.addHandler(console)
             for noisy in (
@@ -197,7 +225,12 @@ class OpenTelemetryConfig:
 
     def get_log_stats(self) -> Dict[str, Any]:
         if not self.log_file.exists():
-            return {"file_exists": False, "file_size": 0, "line_count": 0, "last_modified": None}
+            return {
+                "file_exists": False,
+                "file_size": 0,
+                "line_count": 0,
+                "last_modified": None,
+            }
         try:
             stat = self.log_file.stat()
             with self.log_file.open("r", encoding="utf-8") as f:
@@ -206,7 +239,9 @@ class OpenTelemetryConfig:
                 "file_exists": True,
                 "file_size": stat.st_size,
                 "line_count": line_count,
-                "last_modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "last_modified": datetime.fromtimestamp(
+                    stat.st_mtime, tz=timezone.utc
+                ).isoformat(),
                 "file_path": str(self.log_file),
             }
         except Exception as e:  # noqa: BLE001
@@ -218,7 +253,9 @@ class OpenTelemetryConfig:
 otel_config: Optional[OpenTelemetryConfig] = None
 
 
-def setup_opentelemetry(service_name: str = "atlas-ui-3-backend", service_version: str = "1.0.0") -> OpenTelemetryConfig:
+def setup_opentelemetry(
+    service_name: str = "atlas-ui-3-backend", service_version: str = "1.0.0"
+) -> OpenTelemetryConfig:
     global otel_config
     otel_config = OpenTelemetryConfig(service_name, service_version)
     return otel_config

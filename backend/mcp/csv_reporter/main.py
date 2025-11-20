@@ -55,8 +55,6 @@ def _backend_base_url() -> str:
     return os.environ.get("CHATUI_BACKEND_BASE_URL", "http://127.0.0.1:8000")
 
 
-
-
 def _load_csv_bytes(filename: str, file_data_base64: str = "") -> bytes:
     """Return raw CSV bytes from either base64, URL, or local uploads path.
 
@@ -135,14 +133,18 @@ def _dataframe_report(df: pd.DataFrame, *, username: str, source_name: str) -> s
 @mcp.tool
 def generate_csv_report(
     instructions: Annotated[str, "Instructions for the tool, not used for logic"],
-    filename: Annotated[str, "CSV filename. Backend may rewrite to a downloadable URL."],
+    filename: Annotated[
+        str, "CSV filename. Backend may rewrite to a downloadable URL."
+    ],
     username: Annotated[str, "Injected by backend. Trust this value."] = "",
-    file_data_base64: Annotated[str, "Framework may supply Base64 content as fallback."] = "",
+    file_data_base64: Annotated[
+        str, "Framework may supply Base64 content as fallback."
+    ] = "",
 ) -> Dict[str, Any]:
     """Generate comprehensive statistical analysis and summary report for CSV data files.
 
     This tool performs in-depth analysis of CSV files to provide actionable insights:
-    
+
     **Data Analysis Features:**
     - Complete dataset overview (rows, columns, data types)
     - Statistical summaries for all numeric columns (mean, median, std, min, max, quartiles)
@@ -203,7 +205,9 @@ def generate_csv_report(
             return {"results": {"error": "CSV is empty."}}
 
         # Use the raw filename; let the chat UI handle any sanitization
-        report_text = _dataframe_report(df, username=username or "unknown", source_name=filename)
+        report_text = _dataframe_report(
+            df, username=username or "unknown", source_name=filename
+        )
         report_b64 = base64.b64encode(report_text.encode("utf-8")).decode("utf-8")
 
         return {
@@ -246,13 +250,15 @@ def generate_csv_report(
 @mcp.tool
 def summarize_multiple_csvs(
     instructions: Annotated[str, "Instructions for the tool, not used for logic"],
-    file_names: Annotated[List[str], "Array of CSV filenames. Backend may rewrite to downloadable URLs."],
+    file_names: Annotated[
+        List[str], "Array of CSV filenames. Backend may rewrite to downloadable URLs."
+    ],
     username: Annotated[str, "Injected by backend. Trust this value."] = "",
 ) -> Dict[str, Any]:
     """Create comparative analysis and consolidated summary across multiple CSV datasets.
 
     This advanced tool processes multiple CSV files simultaneously to provide:
-    
+
     **Cross-Dataset Analysis:**
     - Comparative dataset metrics (rows, columns, sizes)
     - Column name consistency analysis across files
@@ -361,13 +367,20 @@ def summarize_multiple_csvs(
 @mcp.tool
 def plot_correlation_matrix(
     instructions: Annotated[str, "Instructions for the tool, not used for logic"],
-    filename: Annotated[str, "CSV filename. Backend may rewrite to a downloadable URL."],
-    columns: Annotated[Optional[List[str]], "Specific columns to plot. If None, plots all numeric columns."] = None,
+    filename: Annotated[
+        str, "CSV filename. Backend may rewrite to a downloadable URL."
+    ],
+    columns: Annotated[
+        Optional[List[str]],
+        "Specific columns to plot. If None, plots all numeric columns.",
+    ] = None,
     username: Annotated[str, "Injected by backend. Trust this value."] = "",
-    file_data_base64: Annotated[str, "Framework may supply Base64 content as fallback."] = "",
+    file_data_base64: Annotated[
+        str, "Framework may supply Base64 content as fallback."
+    ] = "",
 ) -> Dict[str, Any]:
     """Generate an N by N correlation matrix plot for numeric columns in a CSV file.
-    
+
     Creates a heatmap showing linear correlations between specified columns or all numeric columns.
     """
     try:
@@ -386,24 +399,35 @@ def plot_correlation_matrix(
         if columns:
             available_cols = [col for col in columns if col in numeric_df.columns]
             if not available_cols:
-                return {"results": {"error": f"None of the specified columns {columns} are numeric or exist in the CSV."}}
+                return {
+                    "results": {
+                        "error": f"None of the specified columns {columns} are numeric or exist in the CSV."
+                    }
+                }
             numeric_df = numeric_df[available_cols]
 
         # Calculate correlation matrix
         corr_matrix = numeric_df.corr()
-        
+
         # Create the plot
         plt.figure(figsize=(10, 8))
-        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, 
-                   square=True, fmt='.2f', cbar_kws={'shrink': 0.8})
-        plt.title('Correlation Matrix')
+        sns.heatmap(
+            corr_matrix,
+            annot=True,
+            cmap="coolwarm",
+            center=0,
+            square=True,
+            fmt=".2f",
+            cbar_kws={"shrink": 0.8},
+        )
+        plt.title("Correlation Matrix")
         plt.tight_layout()
-        
+
         # Save plot to bytes
         img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight')
+        plt.savefig(img_buffer, format="png", dpi=300, bbox_inches="tight")
         img_buffer.seek(0)
-        img_b64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        img_b64 = base64.b64encode(img_buffer.getvalue()).decode("utf-8")
         plt.close()
 
         return {
@@ -447,13 +471,19 @@ def plot_correlation_matrix(
 @mcp.tool
 def plot_time_series(
     instructions: Annotated[str, "Instructions for the tool, not used for logic"],
-    filename: Annotated[str, "CSV filename. Backend may rewrite to a downloadable URL."],
-    columns: Annotated[List[str], "Columns to plot as time series with index as x-axis."],
+    filename: Annotated[
+        str, "CSV filename. Backend may rewrite to a downloadable URL."
+    ],
+    columns: Annotated[
+        List[str], "Columns to plot as time series with index as x-axis."
+    ],
     username: Annotated[str, "Injected by backend. Trust this value."] = "",
-    file_data_base64: Annotated[str, "Framework may supply Base64 content as fallback."] = "",
+    file_data_base64: Annotated[
+        str, "Framework may supply Base64 content as fallback."
+    ] = "",
 ) -> Dict[str, Any]:
     """Generate connected scatter plots for specified columns with index as x-axis.
-    
+
     Creates a time series style plot where each specified column is plotted against the row index.
     """
     try:
@@ -470,38 +500,51 @@ def plot_time_series(
             # Check if specified columns exist
             missing_cols = [col for col in columns if col not in df.columns]
             if missing_cols:
-                return {"results": {"error": f"Columns not found in CSV: {missing_cols}"}}
+                return {
+                    "results": {"error": f"Columns not found in CSV: {missing_cols}"}
+                }
 
         # Select only the specified columns
         plot_df = df[columns]
-        
+
         # Check if columns are numeric (convert if possible)
         for col in columns:
             if not pd.api.types.is_numeric_dtype(plot_df[col]):
                 try:
-                    plot_df[col] = pd.to_numeric(plot_df[col], errors='coerce')
+                    plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
                 except:
-                    return {"results": {"error": f"Column '{col}' cannot be converted to numeric values."}}
+                    return {
+                        "results": {
+                            "error": f"Column '{col}' cannot be converted to numeric values."
+                        }
+                    }
 
         # Create the plot
         plt.figure(figsize=(12, 8))
-        
+
         for col in columns:
-            plt.plot(plot_df.index, plot_df[col], marker='o', markersize=3, 
-                    linewidth=1.5, label=col, alpha=0.8)
-        
-        plt.xlabel('Index')
-        plt.ylabel('Values')
-        plt.title('Time Series Plot')
+            plt.plot(
+                plot_df.index,
+                plot_df[col],
+                marker="o",
+                markersize=3,
+                linewidth=1.5,
+                label=col,
+                alpha=0.8,
+            )
+
+        plt.xlabel("Index")
+        plt.ylabel("Values")
+        plt.title("Time Series Plot")
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        
+
         # Save plot to bytes
         img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight')
+        plt.savefig(img_buffer, format="png", dpi=300, bbox_inches="tight")
         img_buffer.seek(0)
-        img_b64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        img_b64 = base64.b64encode(img_buffer.getvalue()).decode("utf-8")
         plt.close()
 
         return {

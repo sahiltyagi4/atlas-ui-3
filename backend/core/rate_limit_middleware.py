@@ -30,7 +30,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._buckets: dict[str, t.Tuple[int, int]] = {}
 
     def _key_for(self, request: Request) -> str:
-        client_ip = getattr(request.client, "host", "unknown") if request.client else "unknown"
+        client_ip = (
+            getattr(request.client, "host", "unknown") if request.client else "unknown"
+        )
         if self.per_path:
             return f"{client_ip}:{request.url.path}"
         return client_ip

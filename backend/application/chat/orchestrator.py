@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 class ChatOrchestrator:
     """
     Orchestrates the full chat request flow.
-    
+
     Coordinates preprocessing, policy checks, mode selection, and execution.
     Provides clean separation between request handling and business logic.
     """
-    
+
     def __init__(
         self,
         llm: LLMProtocol,
@@ -48,7 +48,7 @@ class ChatOrchestrator:
     ):
         """
         Initialize chat orchestrator.
-        
+
         Args:
             llm: LLM protocol implementation
             event_publisher: Event publisher for UI updates
@@ -68,12 +68,12 @@ class ChatOrchestrator:
         self.tool_manager = tool_manager
         self.prompt_provider = prompt_provider
         self.file_manager = file_manager
-        
+
         # Initialize services
         self.tool_authorization = ToolAuthorizationService(tool_manager=tool_manager)
         self.prompt_override = PromptOverrideService(tool_manager=tool_manager)
         self.message_builder = MessageBuilder()
-        
+
         # Initialize or use provided mode runners
         self.plain_mode = plain_mode or PlainModeRunner(
             llm=llm,
@@ -91,7 +91,7 @@ class ChatOrchestrator:
             artifact_processor=artifact_processor,
         )
         self.agent_mode = agent_mode
-    
+
     async def execute(
         self,
         session_id: UUID,
@@ -106,11 +106,11 @@ class ChatOrchestrator:
         agent_mode: bool = False,
         temperature: float = 0.7,
         files: Optional[Dict[str, Any]] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Execute a chat request through the full pipeline.
-        
+
         Args:
             session_id: Session identifier
             content: User message content
@@ -125,7 +125,7 @@ class ChatOrchestrator:
             temperature: LLM temperature
             files: Optional files to attach
             **kwargs: Additional parameters
-            
+
         Returns:
             Response dictionary
         """
@@ -133,16 +133,14 @@ class ChatOrchestrator:
         session = await self.session_repository.get(session_id)
         if not session:
             raise SessionNotFoundError(f"Session {session_id} not found")
-        
+
         # Add user message to history
         user_message = Message(
-            role=MessageRole.USER,
-            content=content,
-            metadata={"model": model}
+            role=MessageRole.USER, content=content, metadata={"model": model}
         )
         session.history.add_message(user_message)
         session.update_timestamp()
-        
+
         # Handle file ingestion
         update_callback = kwargs.get("update_callback")
         session.context = await file_utils.handle_session_files(
@@ -150,21 +148,19 @@ class ChatOrchestrator:
             user_email=user_email,
             files_map=files,
             file_manager=self.file_manager,
-            update_callback=update_callback
+            update_callback=update_callback,
         )
-        
+
         # Build messages with history and files manifest
         messages = await self.message_builder.build_messages(
-            session=session,
-            include_files_manifest=True
+            session=session, include_files_manifest=True
         )
-        
+
         # Apply MCP prompt override
         messages = await self.prompt_override.apply_prompt_override(
-            messages=messages,
-            selected_prompts=selected_prompts
+            messages=messages, selected_prompts=selected_prompts
         )
-        
+
         # Route to appropriate mode
         if agent_mode and self.agent_mode:
             return await self.agent_mode.run(
@@ -180,8 +176,7 @@ class ChatOrchestrator:
         elif selected_tools and not only_rag:
             # Apply tool authorization
             selected_tools = await self.tool_authorization.filter_authorized_tools(
-                selected_tools=selected_tools,
-                user_email=user_email
+                selected_tools=selected_tools, user_email=user_email
             )
             return await self.tools_mode.run(
                 session=session,

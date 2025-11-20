@@ -21,20 +21,20 @@ class MCPToolManager:
 
     Default config path now points to config/overrides (or env override) with legacy fallback.
     """
-    
+
     def __init__(self, config_path: Optional[str] = None):
         if config_path is None:
             # Use config manager to get config path
             app_settings = config_manager.app_settings
             overrides_root = Path(app_settings.app_config_overrides)
-            
+
             # If relative, resolve from project root
             if not overrides_root.is_absolute():
                 # This file is in backend/modules/mcp_tools/client.py
                 backend_root = Path(__file__).parent.parent.parent
                 project_root = backend_root.parent
                 overrides_root = project_root / overrides_root
-            
+
             candidate = overrides_root / "mcp.json"
             if not candidate.exists():
                 # Legacy fallback
@@ -45,15 +45,16 @@ class MCPToolManager:
         else:
             self.config_path = config_path
         mcp_config = config_manager.mcp_config
-        self.servers_config = {name: server.model_dump() for name, server in mcp_config.servers.items()}
+        self.servers_config = {
+            name: server.model_dump() for name, server in mcp_config.servers.items()
+        }
         self.clients = {}
         self.available_tools = {}
         self.available_prompts = {}
-        
-    
+
     def _determine_transport_type(self, config: Dict[str, Any]) -> str:
         """Determine the transport type for an MCP server configuration.
-        
+
         Priority order:
         1. Explicit 'transport' field (highest priority)
         2. Auto-detection from command
@@ -64,12 +65,12 @@ class MCPToolManager:
         if config.get("transport"):
             logger.debug(f"Using explicit transport: {config['transport']}")
             return config["transport"]
-        
+
         # 2. Auto-detect from command (takes priority over URL)
         if config.get("command"):
             logger.debug("Auto-detected STDIO transport from command")
             return "stdio"
-        
+
         # 3. Auto-detect from URL if it has protocol
         url = config.get("url")
         if url:
@@ -84,31 +85,37 @@ class MCPToolManager:
                 # URL without protocol - check if type field specifies transport
                 transport_type = config.get("type", "stdio")
                 if transport_type in ["http", "sse"]:
-                    logger.debug(f"Using type field '{transport_type}' for URL without protocol: {url}")
+                    logger.debug(
+                        f"Using type field '{transport_type}' for URL without protocol: {url}"
+                    )
                     return transport_type
                 else:
                     logger.debug(f"URL without protocol, defaulting to HTTP: {url}")
                     return "http"
-            
+
         # 4. Fallback to type field (backward compatibility)
         transport_type = config.get("type", "stdio")
         logger.debug(f"Using fallback transport type: {transport_type}")
         return transport_type
 
-    async def _initialize_single_client(self, server_name: str, config: Dict[str, Any]) -> Optional[Client]:
+    async def _initialize_single_client(
+        self, server_name: str, config: Dict[str, Any]
+    ) -> Optional[Client]:
         """Initialize a single MCP client. Returns None if initialization fails."""
-        logger.info(f"=== Initializing client for server '{sanitize_for_logging(server_name)}' ===\n\nServer config: {sanitize_for_logging(str(config))}")
+        logger.info(
+            f"=== Initializing client for server '{sanitize_for_logging(server_name)}' ===\n\nServer config: {sanitize_for_logging(str(config))}"
+        )
         try:
             transport_type = self._determine_transport_type(config)
             logger.info(f"Determined transport type: {transport_type}")
-            
+
             if transport_type in ["http", "sse"]:
                 # HTTP/SSE MCP server
                 url = config.get("url")
                 if not url:
                     logger.error(f"No URL provided for HTTP/SSE server: {server_name}")
                     return None
-                
+
                 # Ensure URL has protocol for FastMCP client
                 if not url.startswith(("http://", "https://")):
                     url = f"http://{url}"
@@ -120,7 +127,7 @@ class MCPToolManager:
                 except ValueError as e:
                     logger.error(f"Failed to resolve auth_token for {server_name}: {e}")
                     return None  # Skip this server
-                
+
                 if transport_type == "sse":
                     # Use explicit SSE transport
                     logger.debug(f"Creating SSE client for {server_name} at {url}")
@@ -129,10 +136,12 @@ class MCPToolManager:
                     # Use HTTP transport (StreamableHttp)
                     logger.debug(f"Creating HTTP client for {server_name} at {url}")
                     client = Client(url, auth=token)
-                
-                logger.info(f"Created {transport_type.upper()} MCP client for {server_name}")
+
+                logger.info(
+                    f"Created {transport_type.upper()} MCP client for {server_name}"
+                )
                 return client
-            
+
             elif transport_type == "stdio":
                 # STDIO MCP server
                 command = config.get("command")
@@ -142,7 +151,7 @@ class MCPToolManager:
                     cwd = config.get("cwd")
                     env = config.get("env")
                     logger.info(f"Working directory specified: {cwd}")
-                    
+
                     # Resolve environment variables in env dict
                     resolved_env = None
                     if env is not None:
@@ -150,103 +159,164 @@ class MCPToolManager:
                         for key, value in env.items():
                             try:
                                 resolved_env[key] = resolve_env_var(value)
-                                logger.debug(f"Resolved env var {key} for {server_name}")
+                                logger.debug(
+                                    f"Resolved env var {key} for {server_name}"
+                                )
                             except ValueError as e:
-                                logger.error(f"Failed to resolve env var {key} for {server_name}: {e}")
-                                return None  # Skip this server if env var resolution fails
-                        logger.info(f"Environment variables specified: {list(resolved_env.keys())}")
-                    
+                                logger.error(
+                                    f"Failed to resolve env var {key} for {server_name}: {e}"
+                                )
+                                return (
+                                    None  # Skip this server if env var resolution fails
+                                )
+                        logger.info(
+                            f"Environment variables specified: {list(resolved_env.keys())}"
+                        )
+
                     if cwd:
                         # Convert relative path to absolute path from project root
                         if not os.path.isabs(cwd):
                             # Get project root (3 levels up from client.py)
                             # client.py is at: /workspaces/atlas-ui-3-11/backend/modules/mcp_tools/client.py
                             # project root is: /workspaces/atlas-ui-3-11
-                            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+                            project_root = os.path.dirname(
+                                os.path.dirname(
+                                    os.path.dirname(
+                                        os.path.dirname(os.path.abspath(__file__))
+                                    )
+                                )
+                            )
                             cwd = os.path.join(project_root, cwd)
-                            logger.info(f"Converted relative cwd to absolute: {cwd} (project_root: {project_root})")
-                        
+                            logger.info(
+                                f"Converted relative cwd to absolute: {cwd} (project_root: {project_root})"
+                            )
+
                         if os.path.exists(cwd):
                             logger.info(f"✓ Working directory exists: {cwd}")
-                            logger.info(f"Creating STDIO client for {server_name} with command: {command} in cwd: {cwd}")
+                            logger.info(
+                                f"Creating STDIO client for {server_name} with command: {command} in cwd: {cwd}"
+                            )
                             from fastmcp.client.transports import StdioTransport
-                            transport = StdioTransport(command=command[0], args=command[1:], cwd=cwd, env=resolved_env)
+
+                            transport = StdioTransport(
+                                command=command[0],
+                                args=command[1:],
+                                cwd=cwd,
+                                env=resolved_env,
+                            )
                             client = Client(transport)
-                            logger.info(f"✓ Successfully created STDIO MCP client for {server_name} with custom command and cwd")
+                            logger.info(
+                                f"✓ Successfully created STDIO MCP client for {server_name} with custom command and cwd"
+                            )
                             return client
                         else:
                             logger.error(f"✗ Working directory does not exist: {cwd}")
                             return None
                     else:
-                        logger.info(f"No cwd specified, creating STDIO client for {server_name} with command: {command}")
+                        logger.info(
+                            f"No cwd specified, creating STDIO client for {server_name} with command: {command}"
+                        )
                         from fastmcp.client.transports import StdioTransport
-                        transport = StdioTransport(command=command[0], args=command[1:], env=resolved_env)
+
+                        transport = StdioTransport(
+                            command=command[0], args=command[1:], env=resolved_env
+                        )
                         client = Client(transport)
-                        logger.info(f"✓ Successfully created STDIO MCP client for {server_name} with custom command")
+                        logger.info(
+                            f"✓ Successfully created STDIO MCP client for {server_name} with custom command"
+                        )
                         return client
                 else:
                     # Fallback to old behavior for backward compatibility
                     server_path = f"mcp/{server_name}/main.py"
-                    logger.debug(f"Attempting to initialize {server_name} at path: {server_path}")
+                    logger.debug(
+                        f"Attempting to initialize {server_name} at path: {server_path}"
+                    )
                     if os.path.exists(server_path):
-                        logger.debug(f"Server script exists for {server_name}, creating client...")
-                        client = Client(server_path)  # Client auto-detects STDIO transport from .py file
+                        logger.debug(
+                            f"Server script exists for {server_name}, creating client..."
+                        )
+                        client = Client(
+                            server_path
+                        )  # Client auto-detects STDIO transport from .py file
                         logger.info(f"Created MCP client for {server_name}")
                         logger.debug(f"Successfully created client for {server_name}")
                         return client
                     else:
-                        logger.error(f"MCP server script not found: {server_path}", exc_info=True)
+                        logger.error(
+                            f"MCP server script not found: {server_path}", exc_info=True
+                        )
                         return None
             else:
-                logger.error(f"Unsupported transport type '{transport_type}' for server: {server_name}")
+                logger.error(
+                    f"Unsupported transport type '{transport_type}' for server: {server_name}"
+                )
                 return None
-                        
+
         except Exception as e:
             # Targeted debugging for MCP startup errors
             error_type = type(e).__name__
-            logger.error(f"✗ Error creating client for {server_name}: {error_type}: {e}")
-            
+            logger.error(
+                f"✗ Error creating client for {server_name}: {error_type}: {e}"
+            )
+
             # Provide specific debugging information based on error type and config
             if "connection" in str(e).lower() or "refused" in str(e).lower():
                 if transport_type in ["http", "sse"]:
-                    logger.error(f"🔍 DEBUG: Connection failed for HTTP/SSE server '{server_name}'")
+                    logger.error(
+                        f"🔍 DEBUG: Connection failed for HTTP/SSE server '{server_name}'"
+                    )
                     logger.error(f"    → URL: {config.get('url', 'Not specified')}")
                     logger.error(f"    → Transport: {transport_type}")
                     logger.error("    → Check if server is running and accessible")
                 else:
-                    logger.error(f"🔍 DEBUG: STDIO connection failed for server '{server_name}'")
-                    logger.error(f"    → Command: {config.get('command', 'Not specified')}")
+                    logger.error(
+                        f"🔍 DEBUG: STDIO connection failed for server '{server_name}'"
+                    )
+                    logger.error(
+                        f"    → Command: {config.get('command', 'Not specified')}"
+                    )
                     logger.error(f"    → CWD: {config.get('cwd', 'Not specified')}")
                     logger.error("    → Check if command exists and is executable")
-                    
+
             elif "timeout" in str(e).lower():
                 logger.error(f"🔍 DEBUG: Timeout connecting to server '{server_name}'")
                 logger.error("    → Server may be slow to start or overloaded")
-                logger.error("    → Consider increasing timeout or checking server health")
-                
+                logger.error(
+                    "    → Consider increasing timeout or checking server health"
+                )
+
             elif "permission" in str(e).lower() or "access" in str(e).lower():
                 logger.error(f"🔍 DEBUG: Permission error for server '{server_name}'")
-                if config.get('cwd'):
-                    logger.error(f"    → Check directory permissions: {config.get('cwd')}")
-                if config.get('command'):
-                    logger.error(f"    → Check executable permissions: {config.get('command')}")
-                    
+                if config.get("cwd"):
+                    logger.error(
+                        f"    → Check directory permissions: {config.get('cwd')}"
+                    )
+                if config.get("command"):
+                    logger.error(
+                        f"    → Check executable permissions: {config.get('command')}"
+                    )
+
             elif "module" in str(e).lower() or "import" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Import/module error for server '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Import/module error for server '{server_name}'"
+                )
                 logger.error("    → Check if required dependencies are installed")
                 logger.error("    → Check Python path and virtual environment")
-                
+
             elif "json" in str(e).lower() or "decode" in str(e).lower():
-                logger.error(f"🔍 DEBUG: JSON/protocol error for server '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: JSON/protocol error for server '{server_name}'"
+                )
                 logger.error("    → Server may not be MCP-compatible")
                 logger.error("    → Check server output format")
-                
+
             else:
                 # Generic debugging info
                 logger.error(f"🔍 DEBUG: Generic error for server '{server_name}'")
                 logger.error(f"    → Config: {config}")
                 logger.error(f"    → Transport type: {transport_type}")
-                
+
             # Always show the full traceback in debug mode
             logger.debug(f"Full traceback for {server_name}:", exc_info=True)
             return None
@@ -254,44 +324,63 @@ class MCPToolManager:
     async def initialize_clients(self):
         """Initialize FastMCP clients for all configured servers in parallel."""
         import asyncio
-        
-        logger.info(f"=== CLIENT INITIALIZATION: Starting parallel initialization for {len(self.servers_config)} servers: {list(self.servers_config.keys())} ===")
-        
+
+        logger.info(
+            f"=== CLIENT INITIALIZATION: Starting parallel initialization for {len(self.servers_config)} servers: {list(self.servers_config.keys())} ==="
+        )
+
         # Create tasks for parallel initialization
         tasks = [
             self._initialize_single_client(server_name, config)
             for server_name, config in self.servers_config.items()
         ]
         server_names = list(self.servers_config.keys())
-        
+
         # Run all initialization tasks in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results and store successful clients
         for server_name, result in zip(server_names, results):
             if isinstance(result, Exception):
-                logger.error(f"✗ Exception during client initialization for {server_name}: {result}", exc_info=True)
+                logger.error(
+                    f"✗ Exception during client initialization for {server_name}: {result}",
+                    exc_info=True,
+                )
             elif result is not None:
                 self.clients[server_name] = result
                 logger.info(f"✓ Successfully initialized client for {server_name}")
             else:
                 logger.warning(f"⚠ Failed to initialize client for {server_name}")
-        
+
         logger.info("=== CLIENT INITIALIZATION COMPLETE ===")
-        logger.info(f"Successfully initialized {len(self.clients)} clients: {list(self.clients.keys())}")
-        logger.info(f"Failed to initialize: {set(self.servers_config.keys()) - set(self.clients.keys())}")
+        logger.info(
+            f"Successfully initialized {len(self.clients)} clients: {list(self.clients.keys())}"
+        )
+        logger.info(
+            f"Failed to initialize: {set(self.servers_config.keys()) - set(self.clients.keys())}"
+        )
         logger.info("=== END CLIENT INITIALIZATION SUMMARY ===")
-    
-    async def _discover_tools_for_server(self, server_name: str, client: Client) -> Dict[str, Any]:
+
+    async def _discover_tools_for_server(
+        self, server_name: str, client: Client
+    ) -> Dict[str, Any]:
         """Discover tools for a single server. Returns server tools data."""
-        logger.info(f"=== TOOL DISCOVERY: Starting discovery for server '{server_name}' ===")
-        logger.debug(f"Server config: {self.servers_config.get(server_name, 'No config found')}")
+        logger.info(
+            f"=== TOOL DISCOVERY: Starting discovery for server '{server_name}' ==="
+        )
+        logger.debug(
+            f"Server config: {self.servers_config.get(server_name, 'No config found')}"
+        )
         try:
             logger.info(f"Opening client connection for {server_name}...")
             async with client:
-                logger.info(f"Client connected successfully for {server_name}, listing tools...")
+                logger.info(
+                    f"Client connected successfully for {server_name}, listing tools..."
+                )
                 tools = await client.list_tools()
-                logger.info(f"✓ Successfully got {len(tools)} tools from {server_name}: {[tool.name for tool in tools]}")
+                logger.info(
+                    f"✓ Successfully got {len(tools)} tools from {server_name}: {[tool.name for tool in tools]}"
+                )
 
                 # Log detailed tool information
                 for i, tool in enumerate(tools):
@@ -299,44 +388,57 @@ class MCPToolManager:
                         "  Tool %d: name='%s', description='%s'",
                         i + 1,
                         tool.name,
-                        getattr(tool, 'description', 'No description'),
+                        getattr(tool, "description", "No description"),
                     )
 
                 server_data = {
-                    'tools': tools,
-                    'config': self.servers_config[server_name]
+                    "tools": tools,
+                    "config": self.servers_config[server_name],
                 }
-                logger.info(f"✓ Successfully stored {len(tools)} tools for {server_name} in available_tools")
-                logger.info(f"=== TOOL DISCOVERY: Completed successfully for server '{server_name}' ===")
+                logger.info(
+                    f"✓ Successfully stored {len(tools)} tools for {server_name} in available_tools"
+                )
+                logger.info(
+                    f"=== TOOL DISCOVERY: Completed successfully for server '{server_name}' ==="
+                )
                 return server_data
         except Exception as e:
             error_type = type(e).__name__
-            logger.error(f"✗ TOOL DISCOVERY FAILED for {server_name}: {error_type}: {e}")
-            
+            logger.error(
+                f"✗ TOOL DISCOVERY FAILED for {server_name}: {error_type}: {e}"
+            )
+
             # Targeted debugging for tool discovery errors
             if "connection" in str(e).lower() or "refused" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Connection lost during tool discovery for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Connection lost during tool discovery for '{server_name}'"
+                )
                 logger.error("    → Server may have crashed or disconnected")
                 logger.error("    → Check server logs for startup errors")
             elif "timeout" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Timeout during tool discovery for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Timeout during tool discovery for '{server_name}'"
+                )
                 logger.error("    → Server is slow to respond to list_tools() request")
                 logger.error("    → Server may be overloaded or hanging")
             elif "json" in str(e).lower() or "decode" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Protocol error during tool discovery for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Protocol error during tool discovery for '{server_name}'"
+                )
                 logger.error("    → Server returned invalid MCP response")
                 logger.error("    → Check if server implements MCP protocol correctly")
             else:
-                logger.error(f"🔍 DEBUG: Generic tool discovery error for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Generic tool discovery error for '{server_name}'"
+                )
                 logger.error(f"    → Client object: {client}")
                 logger.error(f"    → Client type: {type(client)}")
-                
-            logger.debug(f"Full tool discovery traceback for {server_name}:", exc_info=True)
-            
-            server_data = {
-                'tools': [],
-                'config': self.servers_config[server_name]
-            }
+
+            logger.debug(
+                f"Full tool discovery traceback for {server_name}:", exc_info=True
+            )
+
+            server_data = {"tools": [], "config": self.servers_config[server_name]}
             logger.error(f"Set empty tools list for failed server {server_name}")
             logger.info(f"=== TOOL DISCOVERY: Failed for server '{server_name}' ===")
             return server_data
@@ -344,8 +446,10 @@ class MCPToolManager:
     async def discover_tools(self):
         """Discover tools from all MCP servers in parallel."""
         import asyncio
-        
-        logger.info(f"Starting parallel tool discovery for {len(self.clients)} clients: {list(self.clients.keys())}")
+
+        logger.info(
+            f"Starting parallel tool discovery for {len(self.clients)} clients: {list(self.clients.keys())}"
+        )
         self.available_tools = {}
 
         # Create tasks for parallel tool discovery
@@ -354,27 +458,30 @@ class MCPToolManager:
             for server_name, client in self.clients.items()
         ]
         server_names = list(self.clients.keys())
-        
+
         # Run all tool discovery tasks in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results and store server tools data
         for server_name, result in zip(server_names, results):
             if isinstance(result, Exception):
-                logger.error(f"✗ Exception during tool discovery for {server_name}: {result}", exc_info=True)
+                logger.error(
+                    f"✗ Exception during tool discovery for {server_name}: {result}",
+                    exc_info=True,
+                )
                 # Set empty tools list for failed server
                 self.available_tools[server_name] = {
-                    'tools': [],
-                    'config': self.servers_config[server_name]
+                    "tools": [],
+                    "config": self.servers_config[server_name],
                 }
             else:
                 self.available_tools[server_name] = result
-        
+
         logger.info("=== TOOL DISCOVERY COMPLETE ===")
         logger.info("Final available_tools summary:")
         for server_name, server_data in self.available_tools.items():
-            tool_count = len(server_data['tools'])
-            tool_names = [tool.name for tool in server_data['tools']]
+            tool_count = len(server_data["tools"])
+            tool_names = [tool.name for tool in server_data["tools"]]
             logger.info(f"  {server_name}: {tool_count} tools {tool_names}")
         logger.info("=== END TOOL DISCOVERY SUMMARY ===")
 
@@ -383,18 +490,17 @@ class MCPToolManager:
         for server_name, server_data in self.available_tools.items():
             if server_name == "canvas":
                 self._tool_index["canvas_canvas"] = {
-                    'server': 'canvas',
-                    'tool': None  # pseudo tool
+                    "server": "canvas",
+                    "tool": None,  # pseudo tool
                 }
             else:
-                for tool in server_data.get('tools', []):
+                for tool in server_data.get("tools", []):
                     full_name = f"{server_name}_{tool.name}"
-                    self._tool_index[full_name] = {
-                        'server': server_name,
-                        'tool': tool
-                    }
-    
-    async def _discover_prompts_for_server(self, server_name: str, client: Client) -> Dict[str, Any]:
+                    self._tool_index[full_name] = {"server": server_name, "tool": tool}
+
+    async def _discover_prompts_for_server(
+        self, server_name: str, client: Client
+    ) -> Dict[str, Any]:
         """Discover prompts for a single server. Returns server prompts data."""
         logger.debug(f"Attempting to discover prompts from {server_name}")
         try:
@@ -407,8 +513,8 @@ class MCPToolManager:
                         f"Got {len(prompts)} prompts from {server_name}: {[prompt.name for prompt in prompts]}"
                     )
                     server_data = {
-                        'prompts': prompts,
-                        'config': self.servers_config[server_name]
+                        "prompts": prompts,
+                        "config": self.servers_config[server_name],
                     }
                     logger.info(f"Discovered {len(prompts)} prompts from {server_name}")
                     logger.debug(f"Successfully stored prompts for {server_name}")
@@ -416,87 +522,103 @@ class MCPToolManager:
                 except Exception:
                     # Server might not support prompts – store empty list
                     logger.debug(f"Server {server_name} does not support prompts")
-                    return {
-                        'prompts': [],
-                        'config': self.servers_config[server_name]
-                    }
+                    return {"prompts": [], "config": self.servers_config[server_name]}
         except Exception as e:
             error_type = type(e).__name__
-            logger.error(f"✗ PROMPT DISCOVERY FAILED for {server_name}: {error_type}: {e}")
-            
+            logger.error(
+                f"✗ PROMPT DISCOVERY FAILED for {server_name}: {error_type}: {e}"
+            )
+
             # Targeted debugging for prompt discovery errors
             if "connection" in str(e).lower() or "refused" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Connection lost during prompt discovery for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Connection lost during prompt discovery for '{server_name}'"
+                )
                 logger.error("    → Server may have crashed or disconnected")
             elif "timeout" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Timeout during prompt discovery for '{server_name}'")
-                logger.error("    → Server is slow to respond to list_prompts() request")
+                logger.error(
+                    f"🔍 DEBUG: Timeout during prompt discovery for '{server_name}'"
+                )
+                logger.error(
+                    "    → Server is slow to respond to list_prompts() request"
+                )
             elif "json" in str(e).lower() or "decode" in str(e).lower():
-                logger.error(f"🔍 DEBUG: Protocol error during prompt discovery for '{server_name}'")
+                logger.error(
+                    f"🔍 DEBUG: Protocol error during prompt discovery for '{server_name}'"
+                )
                 logger.error("    → Server returned invalid MCP response for prompts")
             else:
-                logger.error(f"🔍 DEBUG: Generic prompt discovery error for '{server_name}'")
-                
-            logger.debug(f"Full prompt discovery traceback for {server_name}:", exc_info=True)
+                logger.error(
+                    f"🔍 DEBUG: Generic prompt discovery error for '{server_name}'"
+                )
+
+            logger.debug(
+                f"Full prompt discovery traceback for {server_name}:", exc_info=True
+            )
             logger.debug(f"Set empty prompts list for failed server {server_name}")
-            return {
-                'prompts': [],
-                'config': self.servers_config[server_name]
-            }
+            return {"prompts": [], "config": self.servers_config[server_name]}
 
     async def discover_prompts(self):
         """Discover prompts from all MCP servers in parallel."""
         import asyncio
-        
-        logger.info(f"Starting parallel prompt discovery for {len(self.clients)} clients: {list(self.clients.keys())}")
+
+        logger.info(
+            f"Starting parallel prompt discovery for {len(self.clients)} clients: {list(self.clients.keys())}"
+        )
         self.available_prompts = {}
-        
+
         # Create tasks for parallel prompt discovery
         tasks = [
             self._discover_prompts_for_server(server_name, client)
             for server_name, client in self.clients.items()
         ]
         server_names = list(self.clients.keys())
-        
+
         # Run all prompt discovery tasks in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results and store server prompts data
         for server_name, result in zip(server_names, results):
             if isinstance(result, Exception):
-                logger.error(f"✗ Exception during prompt discovery for {server_name}: {result}", exc_info=True)
+                logger.error(
+                    f"✗ Exception during prompt discovery for {server_name}: {result}",
+                    exc_info=True,
+                )
                 # Set empty prompts list for failed server
                 self.available_prompts[server_name] = {
-                    'prompts': [],
-                    'config': self.servers_config[server_name]
+                    "prompts": [],
+                    "config": self.servers_config[server_name],
                 }
             else:
                 self.available_prompts[server_name] = result
-        
+
         logger.info("=== PROMPT DISCOVERY COMPLETE ===")
-        total_prompts = sum(len(server_data['prompts']) for server_data in self.available_prompts.values())
+        total_prompts = sum(
+            len(server_data["prompts"])
+            for server_data in self.available_prompts.values()
+        )
         logger.info(f"Total prompts discovered: {total_prompts}")
         for server_name, server_data in self.available_prompts.items():
-            prompt_count = len(server_data['prompts'])
-            prompt_names = [prompt.name for prompt in server_data['prompts']]
+            prompt_count = len(server_data["prompts"])
+            prompt_names = [prompt.name for prompt in server_data["prompts"]]
             logger.info(f"  {server_name}: {prompt_count} prompts {prompt_names}")
         logger.info("=== END PROMPT DISCOVERY SUMMARY ===")
-    
+
     def get_server_groups(self, server_name: str) -> List[str]:
         """Get required groups for a server."""
         if server_name in self.servers_config:
             return self.servers_config[server_name].get("groups", [])
         return []
-    
+
     def get_available_servers(self) -> List[str]:
         """Get list of configured servers."""
         return list(self.servers_config.keys())
-    
+
     def get_tools_for_servers(self, server_names: List[str]) -> Dict[str, Any]:
         """Get tools and their schemas for selected servers."""
         tools_schema = []
         server_tool_mapping = {}
-        
+
         for server_name in server_names:
             # Handle canvas pseudo-tool
             if server_name == "canvas":
@@ -510,43 +632,40 @@ class MCPToolManager:
                             "properties": {
                                 "content": {
                                     "type": "string",
-                                    "description": "The content to display in the canvas. Can be markdown, code, or plain text."
+                                    "description": "The content to display in the canvas. Can be markdown, code, or plain text.",
                                 }
                             },
-                            "required": ["content"]
-                        }
-                    }
+                            "required": ["content"],
+                        },
+                    },
                 }
                 tools_schema.append(canvas_tool_schema)
                 server_tool_mapping["canvas_canvas"] = {
-                    'server': 'canvas',
-                    'tool_name': 'canvas'
+                    "server": "canvas",
+                    "tool_name": "canvas",
                 }
             elif server_name in self.available_tools:
-                server_tools = self.available_tools[server_name]['tools']
+                server_tools = self.available_tools[server_name]["tools"]
                 for tool in server_tools:
                     # Convert MCP tool format to OpenAI function calling format
                     tool_schema = {
                         "type": "function",
                         "function": {
                             "name": f"{server_name}_{tool.name}",
-                            "description": tool.description or '',
-                            "parameters": tool.inputSchema or {}
-                        }
+                            "description": tool.description or "",
+                            "parameters": tool.inputSchema or {},
+                        },
                     }
                     # log the server -> function name
                     # logger.info(f"Adding tool {tool.name} for server {server_name} ")
                     tools_schema.append(tool_schema)
                     server_tool_mapping[f"{server_name}_{tool.name}"] = {
-                        'server': server_name,
-                        'tool_name': tool.name
+                        "server": server_name,
+                        "tool_name": tool.name,
                     }
-        
-        return {
-            'tools': tools_schema,
-            'mapping': server_tool_mapping
-        }
-    
+
+        return {"tools": tools_schema, "mapping": server_tool_mapping}
+
     async def call_tool(
         self,
         server_name: str,
@@ -558,7 +677,7 @@ class MCPToolManager:
         """Call a specific tool on an MCP server."""
         if server_name not in self.clients:
             raise ValueError(f"No client available for server: {server_name}")
-        
+
         client = self.clients[server_name]
         try:
             async with client:
@@ -567,17 +686,21 @@ class MCPToolManager:
                 if progress_handler is not None:
                     kwargs["progress_handler"] = progress_handler
                 result = await client.call_tool(tool_name, arguments, **kwargs)
-                logger.info(f"Successfully called {sanitize_for_logging(tool_name)} on {sanitize_for_logging(server_name)}")
+                logger.info(
+                    f"Successfully called {sanitize_for_logging(tool_name)} on {sanitize_for_logging(server_name)}"
+                )
                 return result
         except Exception as e:
             logger.error(f"Error calling {tool_name} on {server_name}: {e}")
             raise
-    
-    async def get_prompt(self, server_name: str, prompt_name: str, arguments: Dict[str, Any] = None) -> Any:
+
+    async def get_prompt(
+        self, server_name: str, prompt_name: str, arguments: Dict[str, Any] = None
+    ) -> Any:
         """Get a specific prompt from an MCP server."""
         if server_name not in self.clients:
             raise ValueError(f"No client available for server: {server_name}")
-        
+
         client = self.clients[server_name]
         try:
             async with client:
@@ -585,31 +708,37 @@ class MCPToolManager:
                     result = await client.get_prompt(prompt_name, arguments)
                 else:
                     result = await client.get_prompt(prompt_name)
-                logger.info(f"Successfully retrieved prompt {prompt_name} from {server_name}")
+                logger.info(
+                    f"Successfully retrieved prompt {prompt_name} from {server_name}"
+                )
                 return result
         except Exception as e:
             logger.error(f"Error getting prompt {prompt_name} from {server_name}: {e}")
             raise
-    
-    def get_available_prompts_for_servers(self, server_names: List[str]) -> Dict[str, Any]:
+
+    def get_available_prompts_for_servers(
+        self, server_names: List[str]
+    ) -> Dict[str, Any]:
         """Get available prompts for selected servers."""
         available_prompts = {}
-        
+
         for server_name in server_names:
             if server_name in self.available_prompts:
-                server_prompts = self.available_prompts[server_name]['prompts']
+                server_prompts = self.available_prompts[server_name]["prompts"]
                 for prompt in server_prompts:
                     prompt_key = f"{server_name}_{prompt.name}"
                     available_prompts[prompt_key] = {
-                        'server': server_name,
-                        'name': prompt.name,
-                        'description': prompt.description or '',
-                        'arguments': prompt.arguments or {}
+                        "server": server_name,
+                        "name": prompt.name,
+                        "description": prompt.description or "",
+                        "arguments": prompt.arguments or {},
                     }
-        
+
         return available_prompts
-    
-    async def get_authorized_servers(self, user_email: str, auth_check_func) -> List[str]:
+
+    async def get_authorized_servers(
+        self, user_email: str, auth_check_func
+    ) -> List[str]:
         """Get list of servers the user is authorized to use."""
         authorized_servers = []
         for server_name, server_config in self.servers_config.items():
@@ -623,11 +752,13 @@ class MCPToolManager:
 
             # Check if user is in any of the required groups
             # We need to await each call and collect results before using any()
-            group_checks = [await auth_check_func(user_email, group) for group in required_groups]
+            group_checks = [
+                await auth_check_func(user_email, group) for group in required_groups
+            ]
             if any(group_checks):
                 authorized_servers.append(server_name)
         return authorized_servers
-    
+
     def get_available_tools(self) -> List[str]:
         """Get list of available tool names."""
         available_tools = []
@@ -635,10 +766,10 @@ class MCPToolManager:
             if server_name == "canvas":
                 available_tools.append("canvas_canvas")
             else:
-                for tool in server_data.get('tools', []):
+                for tool in server_data.get("tools", []):
                     available_tools.append(f"{server_name}_{tool.name}")
         return available_tools
-    
+
     def get_tools_schema(self, tool_names: List[str]) -> List[Dict[str, Any]]:
         """Get schemas for specified tools.
 
@@ -662,16 +793,13 @@ class MCPToolManager:
             for server_name, server_data in self.available_tools.items():
                 if server_name == "canvas":
                     index["canvas_canvas"] = {
-                        'server': 'canvas',
-                        'tool': None  # pseudo tool
+                        "server": "canvas",
+                        "tool": None,  # pseudo tool
                     }
                 else:
-                    for tool in server_data.get('tools', []):
+                    for tool in server_data.get("tools", []):
                         full_name = f"{server_name}_{tool.name}"
-                        index[full_name] = {
-                            'server': server_name,
-                            'tool': tool
-                        }
+                        index[full_name] = {"server": server_name, "tool": tool}
             self._tool_index = index
         else:
             index = self._tool_index
@@ -686,33 +814,37 @@ class MCPToolManager:
             if requested == "canvas_canvas":
                 # Recreate the canvas schema (kept in one place – duplicate logic intentional
                 # to avoid coupling to get_tools_for_servers which returns superset data)
-                matched.append({
-                    "type": "function",
-                    "function": {
-                        "name": "canvas_canvas",
-                        "description": "Display final rendered content in a visual canvas panel. Use this for: 1) Complete code (not code discussions), 2) Final reports/documents (not report discussions), 3) Data visualizations, 4) Any polished content that should be viewed separately from the conversation. Put the actual content in the canvas, keep discussions in chat.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "content": {
-                                    "type": "string",
-                                    "description": "The content to display in the canvas. Can be markdown, code, or plain text."
-                                }
+                matched.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "canvas_canvas",
+                            "description": "Display final rendered content in a visual canvas panel. Use this for: 1) Complete code (not code discussions), 2) Final reports/documents (not report discussions), 3) Data visualizations, 4) Any polished content that should be viewed separately from the conversation. Put the actual content in the canvas, keep discussions in chat.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "description": "The content to display in the canvas. Can be markdown, code, or plain text.",
+                                    }
+                                },
+                                "required": ["content"],
                             },
-                            "required": ["content"]
-                        }
+                        },
                     }
-                })
+                )
             else:
-                tool = entry['tool']
-                matched.append({
-                    "type": "function",
-                    "function": {
-                        "name": requested,
-                        "description": getattr(tool, 'description', '') or '',
-                        "parameters": getattr(tool, 'inputSchema', {}) or {}
+                tool = entry["tool"]
+                matched.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": requested,
+                            "description": getattr(tool, "description", "") or "",
+                            "parameters": getattr(tool, "inputSchema", {}) or {},
+                        },
                     }
-                })
+                )
 
         # Helpful logging / diagnostics
         # try:
@@ -752,7 +884,10 @@ class MCPToolManager:
 
         # Attempt extraction in priority order
         try:
-            if hasattr(raw_result, "structured_content") and raw_result.structured_content:  # type: ignore[attr-defined]
+            if (
+                hasattr(raw_result, "structured_content")
+                and raw_result.structured_content
+            ):  # type: ignore[attr-defined]
                 structured = raw_result.structured_content  # type: ignore[attr-defined]
             elif hasattr(raw_result, "data") and raw_result.data:  # type: ignore[attr-defined]
                 structured = raw_result.data  # type: ignore[attr-defined]
@@ -762,13 +897,17 @@ class MCPToolManager:
                     contents = getattr(raw_result, "content")
                     if contents and hasattr(contents[0], "text"):
                         first_text = getattr(contents[0], "text")
-                        if isinstance(first_text, str) and first_text.strip().startswith("{"):
+                        if isinstance(
+                            first_text, str
+                        ) and first_text.strip().startswith("{"):
                             try:
                                 structured = json.loads(first_text)
                             except Exception:  # pragma: no cover - defensive
                                 pass
         except Exception as parse_err:  # pragma: no cover - defensive
-            logger.debug(f"Non-fatal parse issue extracting structured tool result: {parse_err}")
+            logger.debug(
+                f"Non-fatal parse issue extracting structured tool result: {parse_err}"
+            )
 
         if isinstance(structured, dict):
             # Support both correct and legacy key forms
@@ -796,7 +935,9 @@ class MCPToolManager:
                 normalized["returned_file_names"] = returned_file_names
             if returned_file_contents:
                 normalized["returned_file_count"] = (
-                    len(returned_file_contents) if isinstance(returned_file_contents, (list, tuple)) else 1
+                    len(returned_file_contents)
+                    if isinstance(returned_file_contents, (list, tuple))
+                    else 1
                 )
 
             # Phase 5 fallback: if no explicit results key, treat *entire* structured dict (minus large/base64 fields) as results
@@ -811,7 +952,7 @@ class MCPToolManager:
                     else:
                         normalized["results_summary"] = {
                             "keys": list(pruned.keys()),
-                            "omitted_due_to_size": len(serialized)
+                            "omitted_due_to_size": len(serialized),
                         }
                 except Exception:  # pragma: no cover
                     # Fallback to string repr if serialization fails
@@ -820,24 +961,26 @@ class MCPToolManager:
         if not normalized:
             normalized = {"results": str(raw_result)}
         return normalized
-    
+
     async def execute_tool(
-        self,
-        tool_call: ToolCall,
-        context: Optional[Dict[str, Any]] = None
+        self, tool_call: ToolCall, context: Optional[Dict[str, Any]] = None
     ) -> ToolResult:
         """Execute a tool call."""
-        logger.info(f"Step 7: Entering ToolManager.execute_tool for tool {tool_call.name}")
+        logger.info(
+            f"Step 7: Entering ToolManager.execute_tool for tool {tool_call.name}"
+        )
         # Handle canvas pseudo-tool
         if tool_call.name == "canvas_canvas":
             # Canvas tool just returns the content - it's handled by frontend
             content = tool_call.arguments.get("content", "")
             return ToolResult(
                 tool_call_id=tool_call.id,
-                content=f"Canvas content displayed: {content[:100]}..." if len(content) > 100 else f"Canvas content displayed: {content}",
-                success=True
+                content=f"Canvas content displayed: {content[:100]}..."
+                if len(content) > 100
+                else f"Canvas content displayed: {content}",
+                success=True,
             )
-        
+
         # Use the tool index to get server and tool name (avoids parsing issues with dashes/underscores)
         if not hasattr(self, "_tool_index") or not getattr(self, "_tool_index"):
             # Build tool index if not available (same logic as in get_tools_schema)
@@ -845,18 +988,15 @@ class MCPToolManager:
             for server_name, server_data in self.available_tools.items():
                 if server_name == "canvas":
                     index["canvas_canvas"] = {
-                        'server': 'canvas',
-                        'tool': None  # pseudo tool
+                        "server": "canvas",
+                        "tool": None,  # pseudo tool
                     }
                 else:
-                    for tool in server_data.get('tools', []):
+                    for tool in server_data.get("tools", []):
                         full_name = f"{server_name}_{tool.name}"
-                        index[full_name] = {
-                            'server': server_name,
-                            'tool': tool
-                        }
+                        index[full_name] = {"server": server_name, "tool": tool}
             self._tool_index = index
-        
+
         # Look up the tool in our index
         tool_entry = self._tool_index.get(tool_call.name)
         if not tool_entry:
@@ -864,22 +1004,29 @@ class MCPToolManager:
                 tool_call_id=tool_call.id,
                 content=f"Tool not found: {tool_call.name}",
                 success=False,
-                error=f"Tool not found: {tool_call.name}"
+                error=f"Tool not found: {tool_call.name}",
             )
-        
-        server_name = tool_entry['server']
-        actual_tool_name = tool_entry['tool'].name if tool_entry['tool'] else tool_call.name
-        
+
+        server_name = tool_entry["server"]
+        actual_tool_name = (
+            tool_entry["tool"].name if tool_entry["tool"] else tool_call.name
+        )
+
         try:
             # Build a progress handler that forwards to UI if provided via context
-            async def _progress_handler(progress: float, total: Optional[float], message: Optional[str]) -> None:
+            async def _progress_handler(
+                progress: float, total: Optional[float], message: Optional[str]
+            ) -> None:
                 try:
                     update_cb = None
                     if isinstance(context, dict):
                         update_cb = context.get("update_callback")
                     if update_cb is not None:
                         # Deferred import to avoid cycles
-                        from application.chat.utilities.notification_utils import notify_tool_progress
+                        from application.chat.utilities.notification_utils import (
+                            notify_tool_progress,
+                        )
+
                         await notify_tool_progress(
                             tool_call_id=tool_call.id,
                             tool_name=tool_call.name,
@@ -899,7 +1046,7 @@ class MCPToolManager:
             )
             normalized_content = self._normalize_mcp_tool_result(raw_result)
             content_str = json.dumps(normalized_content, ensure_ascii=False)
-            
+
             # Extract v2 MCP response components (supports dict or FastMCP result objects)
             artifacts: List[Dict[str, Any]] = []
             display_config: Optional[Dict[str, Any]] = None
@@ -910,7 +1057,10 @@ class MCPToolManager:
                     structured = raw_result
                 else:
                     structured = {}
-                    if hasattr(raw_result, "structured_content") and raw_result.structured_content:  # type: ignore[attr-defined]
+                    if (
+                        hasattr(raw_result, "structured_content")
+                        and raw_result.structured_content
+                    ):  # type: ignore[attr-defined]
                         sc = raw_result.structured_content  # type: ignore[attr-defined]
                         if isinstance(sc, dict):
                             structured = sc
@@ -940,7 +1090,9 @@ class MCPToolManager:
                     if isinstance(md, dict):
                         meta_data = md
             except Exception:
-                logger.warning("Error extracting v2 MCP components from tool result", exc_info=True)
+                logger.warning(
+                    "Error extracting v2 MCP components from tool result", exc_info=True
+                )
 
             return ToolResult(
                 tool_call_id=tool_call.id,
@@ -948,7 +1100,7 @@ class MCPToolManager:
                 success=True,
                 artifacts=artifacts,
                 display_config=display_config,
-                meta_data=meta_data
+                meta_data=meta_data,
             )
         except Exception as e:
             logger.error(f"Error executing tool {tool_call.name}: {e}")
@@ -956,13 +1108,11 @@ class MCPToolManager:
                 tool_call_id=tool_call.id,
                 content=f"Error executing tool: {str(e)}",
                 success=False,
-                error=str(e)
+                error=str(e),
             )
-    
+
     async def execute_tool_calls(
-        self,
-        tool_calls: List[ToolCall],
-        context: Optional[Dict[str, Any]] = None
+        self, tool_calls: List[ToolCall], context: Optional[Dict[str, Any]] = None
     ) -> List[ToolResult]:
         """Execute multiple tool calls."""
         results = []

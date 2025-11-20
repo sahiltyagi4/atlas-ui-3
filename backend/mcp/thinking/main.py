@@ -17,7 +17,7 @@ def thinking(list_of_thoughts: List[str]) -> Dict[str, Any]:
     Structured thinking and ideation tool for organizing thoughts, brainstorming, and problem-solving analysis.
 
     This cognitive assistance tool helps organize and process complex thinking patterns:
-    
+
     **Thought Organization:**
     - Structured collection and validation of multiple ideas
     - Thought counting and enumeration for analysis
@@ -62,11 +62,10 @@ def thinking(list_of_thoughts: List[str]) -> Dict[str, Any]:
     try:
         if not list_of_thoughts:
             return {"results": {"error": "No thoughts provided"}}
-        
-        return {"results": {
-            "thoughts": list_of_thoughts,
-            "count": len(list_of_thoughts)
-        }}
+
+        return {
+            "results": {"thoughts": list_of_thoughts, "count": len(list_of_thoughts)}
+        }
 
     except Exception as e:
         return {"results": {"error": f"Error processing thoughts: {str(e)}"}}

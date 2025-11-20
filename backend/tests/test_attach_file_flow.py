@@ -11,15 +11,30 @@ class FakeLLM:
     async def call_plain(self, model_name, messages, temperature=0.7):
         return "ok"
 
-    async def call_with_tools(self, model_name, messages, tools_schema, tool_choice="auto", temperature=0.7):
+    async def call_with_tools(
+        self, model_name, messages, tools_schema, tool_choice="auto", temperature=0.7
+    ):
         from interfaces.llm import LLMResponse
+
         return LLMResponse(content="ok", tool_calls=None, model_used=model_name)
 
-    async def call_with_rag(self, model_name, messages, data_sources, user_email, temperature=0.7):
+    async def call_with_rag(
+        self, model_name, messages, data_sources, user_email, temperature=0.7
+    ):
         return "ok"
 
-    async def call_with_rag_and_tools(self, model_name, messages, data_sources, tools_schema, user_email, tool_choice="auto", temperature=0.7):
+    async def call_with_rag_and_tools(
+        self,
+        model_name,
+        messages,
+        data_sources,
+        tools_schema,
+        user_email,
+        tool_choice="auto",
+        temperature=0.7,
+    ):
         from interfaces.llm import LLMResponse
+
         return LLMResponse(content="ok", tool_calls=None, model_used=model_name)
 
 
@@ -36,7 +51,9 @@ def chat_service(file_manager):
 
 
 @pytest.mark.asyncio
-async def test_handle_attach_file_success_creates_session_and_emits_update(chat_service, file_manager):
+async def test_handle_attach_file_success_creates_session_and_emits_update(
+    chat_service, file_manager
+):
     user_email = "user1@example.com"
     session_id = uuid.uuid4()
 
@@ -72,7 +89,8 @@ async def test_handle_attach_file_success_creates_session_and_emits_update(chat_
     assert resp.get("filename") == filename
 
     assert any(
-        u.get("type") == "intermediate_update" and u.get("update_type") == "files_update"
+        u.get("type") == "intermediate_update"
+        and u.get("update_type") == "files_update"
         for u in updates
     ), "Expected a files_update intermediate update to be emitted"
 
@@ -103,7 +121,9 @@ async def test_handle_attach_file_not_found_returns_error(chat_service):
 
 
 @pytest.mark.asyncio
-async def test_handle_attach_file_unauthorized_other_user_key(chat_service, file_manager):
+async def test_handle_attach_file_unauthorized_other_user_key(
+    chat_service, file_manager
+):
     # Upload under user1
     owner_email = "owner@example.com"
     other_email = "other@example.com"
@@ -144,7 +164,9 @@ async def test_handle_reset_session_reinitializes(chat_service):
     assert chat_service.sessions.get(session_id) is not None
 
     # Reset the session
-    resp = await chat_service.handle_reset_session(session_id=session_id, user_email=user_email)
+    resp = await chat_service.handle_reset_session(
+        session_id=session_id, user_email=user_email
+    )
 
     assert resp.get("type") == "session_reset"
     # After reset, a fresh active session should exist for the same id
@@ -206,4 +228,7 @@ async def test_handle_download_file_not_in_session_returns_error(chat_service):
         user_email=user_email,
     )
 
-    assert resp.get("error") == "Session or file manager not available" or resp.get("error") == "File not found in session"
+    assert (
+        resp.get("error") == "Session or file manager not available"
+        or resp.get("error") == "File not found in session"
+    )

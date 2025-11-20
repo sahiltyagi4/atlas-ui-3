@@ -43,7 +43,9 @@ def _get_secret() -> bytes:
         # Config not ready; continue to fallback
         pass
 
-    logger.warning("Using fallback dev capability token secret. Set CAPABILITY_TOKEN_SECRET for security.")
+    logger.warning(
+        "Using fallback dev capability token secret. Set CAPABILITY_TOKEN_SECRET for security."
+    )
     return b"dev-capability-secret"
 
 
@@ -58,7 +60,9 @@ def _get_default_ttl_seconds() -> int:
     return 3600
 
 
-def generate_file_token(user_email: str, file_key: str, ttl_seconds: Optional[int] = None) -> str:
+def generate_file_token(
+    user_email: str, file_key: str, ttl_seconds: Optional[int] = None
+) -> str:
     """Generate a short-lived token authorizing access to a file key for a user."""
     exp = int(time.time()) + (ttl_seconds or _get_default_ttl_seconds())
     payload = {"u": user_email, "k": file_key, "e": exp}

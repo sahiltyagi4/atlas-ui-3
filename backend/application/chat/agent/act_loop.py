@@ -7,7 +7,13 @@ from interfaces.llm import LLMProtocol
 from interfaces.tools import ToolManagerProtocol
 from modules.prompts.prompt_provider import PromptProvider
 
-from .protocols import AgentContext, AgentEvent, AgentEventHandler, AgentLoopProtocol, AgentResult
+from .protocols import (
+    AgentContext,
+    AgentEvent,
+    AgentEventHandler,
+    AgentLoopProtocol,
+    AgentResult,
+)
 from ..utilities import error_utils, tool_utils
 
 
@@ -69,7 +75,11 @@ class ActAgentLoop(AgentLoopProtocol):
         temperature: float,
         event_handler: AgentEventHandler,
     ) -> AgentResult:
-        await event_handler(AgentEvent(type="agent_start", payload={"max_steps": max_steps, "strategy": "act"}))
+        await event_handler(
+            AgentEvent(
+                type="agent_start", payload={"max_steps": max_steps, "strategy": "act"}
+            )
+        )
 
         steps = 0
         final_answer: Optional[str] = None
@@ -96,19 +106,29 @@ class ActAgentLoop(AgentLoopProtocol):
 
         while steps < max_steps and final_answer is None:
             steps += 1
-            await event_handler(AgentEvent(type="agent_turn_start", payload={"step": steps}))
+            await event_handler(
+                AgentEvent(type="agent_turn_start", payload={"step": steps})
+            )
 
             # Build tools schema: user tools + finished tool
             tools_schema: List[Dict[str, Any]] = [finished_tool_schema]
             if selected_tools and self.tool_manager:
-                user_tools = await error_utils.safe_get_tools_schema(self.tool_manager, selected_tools)
+                user_tools = await error_utils.safe_get_tools_schema(
+                    self.tool_manager, selected_tools
+                )
                 tools_schema.extend(user_tools)
 
             # Call LLM with tools - using "required" to force tool calling during Act phase
             # The LiteLLM caller has fallback logic to "auto" if "required" is not supported
             if data_sources and context.user_email:
                 llm_response = await self.llm.call_with_rag_and_tools(
-                    model, messages, data_sources, tools_schema, context.user_email, "required", temperature=temperature
+                    model,
+                    messages,
+                    data_sources,
+                    tools_schema,
+                    context.user_email,
+                    "required",
+                    temperature=temperature,
                 )
             else:
                 llm_response = await self.llm.call_with_tools(
@@ -138,11 +158,13 @@ class ActAgentLoop(AgentLoopProtocol):
                     break
 
                 # Execute the tool
-                messages.append({
-                    "role": "assistant",
-                    "content": llm_response.content,
-                    "tool_calls": [first_call],
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": llm_response.content,
+                        "tool_calls": [first_call],
+                    }
+                )
 
                 result = await tool_utils.execute_single_tool(
                     tool_call=first_call,
@@ -152,18 +174,24 @@ class ActAgentLoop(AgentLoopProtocol):
                         "files": context.files,
                     },
                     tool_manager=self.tool_manager,
-                    update_callback=(self.connection.send_json if self.connection else None),
+                    update_callback=(
+                        self.connection.send_json if self.connection else None
+                    ),
                     config_manager=self.config_manager,
                 )
 
-                messages.append({
-                    "role": "tool",
-                    "content": result.content,
-                    "tool_call_id": result.tool_call_id,
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "content": result.content,
+                        "tool_call_id": result.tool_call_id,
+                    }
+                )
 
                 # Emit tool results for artifact ingestion
-                await event_handler(AgentEvent(type="agent_tool_results", payload={"results": [result]}))
+                await event_handler(
+                    AgentEvent(type="agent_tool_results", payload={"results": [result]})
+                )
             else:
                 # No tool calls - treat content as final answer
                 final_answer = llm_response.content or "Task completed."
@@ -171,7 +199,15 @@ class ActAgentLoop(AgentLoopProtocol):
 
         # Fallback if no final answer after max steps
         if not final_answer:
-            final_answer = await self.llm.call_plain(model, messages, temperature=temperature)
+            final_answer = await self.llm.call_plain(
+                model, messages, temperature=temperature
+            )
 
-        await event_handler(AgentEvent(type="agent_completion", payload={"steps": steps}))
-        return AgentResult(final_answer=final_answer, steps=steps, metadata={"agent_mode": True, "strategy": "act"})
+        await event_handler(
+            AgentEvent(type="agent_completion", payload={"steps": steps})
+        )
+        return AgentResult(
+            final_answer=final_answer,
+            steps=steps,
+            metadata={"agent_mode": True, "strategy": "act"},
+        )

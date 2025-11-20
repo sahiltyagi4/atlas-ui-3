@@ -24,21 +24,50 @@ class FakeLLM(LLMProtocol):
     def __init__(self, plain_responses: Optional[List[str]] = None):
         self._plain = list(plain_responses or [])
 
-    async def call_plain(self, model_name: str, messages: List[Dict[str, str]], temperature: float = 0.7) -> str:
+    async def call_plain(
+        self, model_name: str, messages: List[Dict[str, str]], temperature: float = 0.7
+    ) -> str:
         if self._plain:
             return self._plain.pop(0)
-        return "{\"plan\":\"noop\",\"tools_to_consider\":[],\"finish\":true,\"final_answer\":\"ok\"}"
+        return (
+            '{"plan":"noop","tools_to_consider":[],"finish":true,"final_answer":"ok"}'
+        )
 
-    async def call_with_tools(self, model_name: str, messages: List[Dict[str, str]], tools_schema: List[Dict], tool_choice: str = "auto", temperature: float = 0.7):
+    async def call_with_tools(
+        self,
+        model_name: str,
+        messages: List[Dict[str, str]],
+        tools_schema: List[Dict],
+        tool_choice: str = "auto",
+        temperature: float = 0.7,
+    ):
         # Minimal stub: never returns tool calls in these tests
         from interfaces.llm import LLMResponse  # type: ignore
+
         return LLMResponse(content="")
 
-    async def call_with_rag(self, model_name: str, messages: List[Dict[str, str]], data_sources: List[str], user_email: str, temperature: float = 0.7) -> str:
+    async def call_with_rag(
+        self,
+        model_name: str,
+        messages: List[Dict[str, str]],
+        data_sources: List[str],
+        user_email: str,
+        temperature: float = 0.7,
+    ) -> str:
         return "not-used"
 
-    async def call_with_rag_and_tools(self, model_name: str, messages: List[Dict[str, str]], data_sources: List[str], tools_schema: List[Dict], user_email: str, tool_choice: str = "auto", temperature: float = 0.7):
+    async def call_with_rag_and_tools(
+        self,
+        model_name: str,
+        messages: List[Dict[str, str]],
+        data_sources: List[str],
+        tools_schema: List[Dict],
+        user_email: str,
+        tool_choice: str = "auto",
+        temperature: float = 0.7,
+    ):
         from interfaces.llm import LLMResponse  # type: ignore
+
         return LLMResponse(content="")
 
 
@@ -46,7 +75,7 @@ class FakeConnection(ChatConnectionProtocol):
     def __init__(self, incoming: Optional[List[Dict[str, Any]]] = None):
         self.messages: List[Dict[str, Any]] = []
         self._queue: asyncio.Queue = asyncio.Queue()
-        for item in (incoming or []):
+        for item in incoming or []:
             self._queue.put_nowait(item)
 
     async def send_json(self, data: Dict[str, Any]) -> None:
@@ -66,12 +95,12 @@ class FakeConnection(ChatConnectionProtocol):
 async def test_agent_reason_immediate_finish():
     """Agent should finish in Reason phase when finish=true with final_answer."""
     # Reason -> finish immediately
-    reason_finish = (
-        "Planning...\n{\"plan\":\"answer now\",\"tools_to_consider\":[],\"finish\":true,\"final_answer\":\"Done!\"}"
-    )
+    reason_finish = 'Planning...\n{"plan":"answer now","tools_to_consider":[],"finish":true,"final_answer":"Done!"}'
     llm = FakeLLM([reason_finish])
     conn = FakeConnection()
-    svc = ChatService(llm=llm, tool_manager=None, connection=conn, config_manager=ConfigManager())
+    svc = ChatService(
+        llm=llm, tool_manager=None, connection=conn, config_manager=ConfigManager()
+    )
 
     resp = await svc.handle_chat_message(
         session_id=__import__("uuid").uuid4(),
@@ -89,7 +118,9 @@ async def test_agent_reason_immediate_finish():
     assert message == "Done!" or "Done!" in message
 
     # Verify agent lifecycle events were emitted
-    kinds = [m.get("update_type") for m in conn.messages if m.get("type") == "agent_update"]
+    kinds = [
+        m.get("update_type") for m in conn.messages if m.get("type") == "agent_update"
+    ]
     assert "agent_start" in kinds
     assert "agent_turn_start" in kinds
     assert "agent_reason" in kinds
@@ -100,18 +131,16 @@ async def test_agent_reason_immediate_finish():
 async def test_agent_request_input_flow():
     """Agent requests input then finishes on next turn."""
     # Turn 1 Reason -> request_input
-    reason_ask = (
-        "Thinking...\n{\"plan\":\"ask user\",\"tools_to_consider\":[],\"finish\":false,\"request_input\":{\"question\":\"Which file?\"}}"
-    )
+    reason_ask = 'Thinking...\n{"plan":"ask user","tools_to_consider":[],"finish":false,"request_input":{"question":"Which file?"}}'
     # Turn 2 Reason -> finish with final answer
-    reason_finish = (
-        "Ok now answer.\n{\"plan\":\"answer\",\"tools_to_consider\":[],\"finish\":true,\"final_answer\":\"All set.\"}"
-    )
+    reason_finish = 'Ok now answer.\n{"plan":"answer","tools_to_consider":[],"finish":true,"final_answer":"All set."}'
     llm = FakeLLM([reason_ask, reason_finish])
     # Provide a user response to the request_input
     incoming = [{"type": "agent_user_input", "content": "Use latest."}]
     conn = FakeConnection(incoming=incoming)
-    svc = ChatService(llm=llm, tool_manager=None, connection=conn, config_manager=ConfigManager())
+    svc = ChatService(
+        llm=llm, tool_manager=None, connection=conn, config_manager=ConfigManager()
+    )
 
     resp = await svc.handle_chat_message(
         session_id=__import__("uuid").uuid4(),

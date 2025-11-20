@@ -29,7 +29,6 @@ class ClientExitError(Exception):
 
 
 class RosOrchestrator:
-
     def __init__(self, destination=None) -> None:
         if destination is None:
             raise ValueError("Destination must be specified!")
@@ -66,8 +65,11 @@ class RosOrchestrator:
 
 mcp = FastMCP(name="Atlas_INTERSECT")
 
+
 @mcp.tool
-def launch_intersect(num_of_options: int = 4, print_name: str = "control_dwell_rook") -> Dict[str, Any]:
+def launch_intersect(
+    num_of_options: int = 4, print_name: str = "control_dwell_rook"
+) -> Dict[str, Any]:
     # Load settings
     with open(sys.argv[1], mode="r", encoding="utf-8") as config_reader:
         from_config_file = yaml.safe_load(config_reader)

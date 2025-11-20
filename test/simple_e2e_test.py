@@ -3,6 +3,7 @@
 Simple E2E tests using requests.
 Tests basic functionality without complex browser automation.
 """
+
 import requests
 import time
 import sys
@@ -15,14 +16,14 @@ def wait_for_server(url, max_retries=30, delay=2):
         try:
             response = requests.get(f"{url}/api/config", timeout=5)
             if response.status_code in [200, 302]:  # 302 is redirect, which is also OK
-                print(f"✅ Server is ready (attempt {i+1})")
+                print(f"✅ Server is ready (attempt {i + 1})")
                 return True
         except requests.exceptions.RequestException:
             pass
-        
-        print(f"  [{i+1}/{max_retries}] Server not ready yet, waiting {delay}s...")
+
+        print(f"  [{i + 1}/{max_retries}] Server not ready yet, waiting {delay}s...")
         time.sleep(delay)
-    
+
     print("❌ Server failed to become ready")
     return False
 
@@ -44,25 +45,38 @@ def test_static_files():
     print("Testing static file serving...")
     try:
         # Test the main page (in DEBUG_MODE=true, should serve directly without auth redirect)
-        response = requests.get("http://127.0.0.1:8000/", timeout=10, allow_redirects=True)
+        response = requests.get(
+            "http://127.0.0.1:8000/", timeout=10, allow_redirects=True
+        )
         if response.status_code == 200:
             # Check for basic HTML content (simple string checks)
             content = response.text
-            if '<html' in content.lower() or '<div' in content.lower() or '<title' in content.lower() or '<body' in content.lower():
+            if (
+                "<html" in content.lower()
+                or "<div" in content.lower()
+                or "<title" in content.lower()
+                or "<body" in content.lower()
+            ):
                 print("✅ Main page loads with HTML content")
                 return True
             else:
                 # If no HTML structure, check if it's a valid response with some content
                 if len(content) > 50:  # Reasonable content length
-                    print("✅ Main page loads with content (may be auth or API response)")
+                    print(
+                        "✅ Main page loads with content (may be auth or API response)"
+                    )
                     return True
                 else:
                     print("❌ Main page loads but no meaningful content found")
                     return False
         elif response.status_code == 404:
             # In CI/CD, static files might not be properly mounted - this is acceptable for backend API testing
-            print("⚠️  Main page returns 404 (likely CI/CD environment - static files not mounted)")
-            print("✅ Static file test skipped - backend API functionality is the main concern")
+            print(
+                "⚠️  Main page returns 404 (likely CI/CD environment - static files not mounted)"
+            )
+            print(
+                "✅ Static file test skipped - backend API functionality is the main concern"
+            )
             return True
         else:
             print(f"❌ Main page returned status {response.status_code}")
@@ -75,7 +89,7 @@ def test_static_files():
 def test_api_endpoints():
     """Test basic API endpoints."""
     print("Testing API endpoints...")
-    
+
     # Test config endpoint
     try:
         response = requests.get("http://127.0.0.1:8000/api/config", timeout=10)
@@ -88,7 +102,7 @@ def test_api_endpoints():
     except Exception as e:
         print(f"⚠️  /api/config failed: {e}")
         config_works = False
-    
+
     # Test banners endpoint
     try:
         response = requests.get("http://127.0.0.1:8000/api/banners", timeout=10)
@@ -101,7 +115,7 @@ def test_api_endpoints():
     except Exception as e:
         print(f"⚠️  /api/banners failed: {e}")
         banners_works = False
-    
+
     return config_works or banners_works  # At least one should work
 
 
@@ -109,32 +123,32 @@ def run_tests():
     """Run all E2E tests."""
     print("🧪 Starting Simple E2E Tests")
     print("=" * 40)
-    
+
     # Wait for server
     if not wait_for_server("http://127.0.0.1:8000"):
         print("💥 Server not ready, aborting tests")
         return False
-    
+
     # Run tests
     tests = [
         test_health_endpoint,
         test_static_files,
         test_api_endpoints,
     ]
-    
+
     results = []
     for test in tests:
         result = test()
         results.append(result)
         print()  # Empty line between tests
-    
+
     # Summary
     passed = sum(results)
     total = len(results)
-    
+
     print("=" * 40)
     print(f"🎯 Test Results: {passed}/{total} passed")
-    
+
     if passed == total:
         print("🎉 All E2E tests passed!")
         return True

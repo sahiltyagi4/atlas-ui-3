@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class ToolAuthorizationService:
     """
     Service that filters selected tools based on user authorization.
-    
+
     Enforces MCP tool access control lists (ACLs) by checking:
     - User authorization to MCP servers
     - Special cases (e.g., canvas_canvas tool is always allowed)
@@ -18,7 +18,7 @@ class ToolAuthorizationService:
     def __init__(self, tool_manager: Optional[Any] = None):
         """
         Initialize the tool authorization service.
-        
+
         Args:
             tool_manager: Optional tool manager with server configuration
         """
@@ -74,7 +74,7 @@ class ToolAuthorizationService:
         except Exception:
             logger.debug(
                 "Tool ACL filtering failed; proceeding with original selection",
-                exc_info=True
+                exc_info=True,
             )
             return selected_tools
 
@@ -93,5 +93,7 @@ class ToolAuthorizationService:
             return await self.tool_manager.get_authorized_servers(user, None)  # type: ignore[attr-defined]
 
         # If no authorization method available, return empty list (no authorized servers)
-        logger.warning(f"Tool manager has no get_authorized_servers method for user {user}")
+        logger.warning(
+            f"Tool manager has no get_authorized_servers method for user {user}"
+        )
         return []

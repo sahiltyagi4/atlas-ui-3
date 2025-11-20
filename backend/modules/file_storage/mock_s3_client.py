@@ -58,7 +58,7 @@ class MockS3StorageClient:
             s3_mock_module = importlib.util.module_from_spec(spec)
 
             # Add to sys.modules so relative imports work
-            sys.modules['s3_mock_app'] = s3_mock_module
+            sys.modules["s3_mock_app"] = s3_mock_module
             spec.loader.exec_module(s3_mock_module)
 
             self._client = TestClient(s3_mock_module.get_app())
@@ -66,14 +66,18 @@ class MockS3StorageClient:
 
         return self._client
 
-    def _generate_s3_key(self, user_email: str, filename: str, source_type: str = "user") -> str:
+    def _generate_s3_key(
+        self, user_email: str, filename: str, source_type: str = "user"
+    ) -> str:
         """Generate an S3-style key with user isolation."""
         timestamp = int(time.time())
         unique_id = str(uuid.uuid4())[:8]
         safe_filename = filename.replace(" ", "_").replace("/", "_")
 
         if source_type == "tool":
-            return f"users/{user_email}/generated/{timestamp}_{unique_id}_{safe_filename}"
+            return (
+                f"users/{user_email}/generated/{timestamp}_{unique_id}_{safe_filename}"
+            )
         else:
             return f"users/{user_email}/uploads/{timestamp}_{unique_id}_{safe_filename}"
 
@@ -88,7 +92,7 @@ class MockS3StorageClient:
         content_base64: str,
         content_type: str = "application/octet-stream",
         tags: Optional[Dict[str, str]] = None,
-        source_type: str = "user"
+        source_type: str = "user",
     ) -> Dict[str, Any]:
         """
         Upload a file to mock S3 storage.
@@ -125,14 +129,14 @@ class MockS3StorageClient:
                 "Content-Type": content_type,
                 "x-amz-meta-user_email": user_email,
                 "x-amz-meta-original_filename": filename,
-                "x-amz-meta-source_type": source_type
+                "x-amz-meta-source_type": source_type,
             }
 
             response = self.client.put(
                 f"/{self.bucket_name}/{s3_key}",
                 content=content_bytes,
                 headers=headers,
-                params={"tagging": tag_param}
+                params={"tagging": tag_param},
             )
 
             if response.status_code != 200:
@@ -148,10 +152,12 @@ class MockS3StorageClient:
                 "last_modified": None,  # Mock doesn't need exact timestamp
                 "etag": etag,
                 "tags": file_tags,
-                "user_email": user_email
+                "user_email": user_email,
             }
 
-            logger.info(f"File uploaded successfully: {sanitize_for_logging(s3_key)} for user {sanitize_for_logging(user_email)}")
+            logger.info(
+                f"File uploaded successfully: {sanitize_for_logging(s3_key)} for user {sanitize_for_logging(user_email)}"
+            )
             return result
 
         except Exception as e:
@@ -172,14 +178,18 @@ class MockS3StorageClient:
         try:
             # Verify user has access to this file
             if not file_key.startswith(f"users/{user_email}/"):
-                logger.warning(f"Access denied: {sanitize_for_logging(user_email)} attempted to access {sanitize_for_logging(file_key)}")
+                logger.warning(
+                    f"Access denied: {sanitize_for_logging(user_email)} attempted to access {sanitize_for_logging(file_key)}"
+                )
                 raise Exception("Access denied to file")
 
             # Get object via TestClient
             response = self.client.get(f"/{self.bucket_name}/{file_key}")
 
             if response.status_code == 404:
-                logger.warning(f"File not found: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}")
+                logger.warning(
+                    f"File not found: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}"
+                )
                 return None
 
             if response.status_code != 200:
@@ -190,11 +200,14 @@ class MockS3StorageClient:
             content_base64 = base64.b64encode(content_bytes).decode()
 
             # Get tags
-            tags_response = self.client.get(f"/{self.bucket_name}/{file_key}", params={"tagging": ""})
+            tags_response = self.client.get(
+                f"/{self.bucket_name}/{file_key}", params={"tagging": ""}
+            )
             tags = {}
             if tags_response.status_code == 200:
                 # Parse XML tags (simplified - just extract from response)
                 import xml.etree.ElementTree as ET
+
                 try:
                     root = ET.fromstring(tags_response.text)
                     for tag_elem in root.findall(".//Tag"):
@@ -204,23 +217,32 @@ class MockS3StorageClient:
                             tags[key_elem.text] = value_elem.text
                 except ET.ParseError:
                     # Failed to parse tags XML; tags will be left empty. This is non-fatal as tags are optional.
-                    logger.warning(f"Failed to parse tags XML for file {sanitize_for_logging(file_key)}", exc_info=True)
+                    logger.warning(
+                        f"Failed to parse tags XML for file {sanitize_for_logging(file_key)}",
+                        exc_info=True,
+                    )
 
             # Extract filename from metadata headers
-            filename = response.headers.get("x-amz-meta-original_filename", file_key.split('/')[-1])
+            filename = response.headers.get(
+                "x-amz-meta-original_filename", file_key.split("/")[-1]
+            )
 
             result = {
                 "key": file_key,
                 "filename": filename,
                 "content_base64": content_base64,
-                "content_type": response.headers.get("Content-Type", "application/octet-stream"),
+                "content_type": response.headers.get(
+                    "Content-Type", "application/octet-stream"
+                ),
                 "size": len(content_bytes),
                 "last_modified": None,
                 "etag": response.headers.get("ETag", "").strip('"'),
-                "tags": tags
+                "tags": tags,
             }
 
-            logger.info(f"File retrieved successfully: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}")
+            logger.info(
+                f"File retrieved successfully: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}"
+            )
             return result
 
         except Exception as e:
@@ -228,10 +250,7 @@ class MockS3StorageClient:
             raise
 
     async def list_files(
-        self,
-        user_email: str,
-        file_type: Optional[str] = None,
-        limit: int = 100
+        self, user_email: str, file_type: Optional[str] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
         List files for a user.
@@ -255,7 +274,7 @@ class MockS3StorageClient:
             # List via TestClient
             response = self.client.get(
                 f"/{self.bucket_name}",
-                params={"list-type": "2", "prefix": prefix, "max-keys": str(limit)}
+                params={"list-type": "2", "prefix": prefix, "max-keys": str(limit)},
             )
 
             if response.status_code != 200:
@@ -263,8 +282,9 @@ class MockS3StorageClient:
 
             # Parse XML response
             import xml.etree.ElementTree as ET
+
             root = ET.fromstring(response.text)
-            ns = {'s3': 'http://s3.amazonaws.com/doc/2006-03-01/'}
+            ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
             contents = root.findall(".//s3:Contents", ns) or root.findall(".//Contents")
 
             files = []
@@ -284,21 +304,29 @@ class MockS3StorageClient:
 
                 # Get metadata via HEAD
                 head_response = self.client.head(f"/{self.bucket_name}/{key}")
-                filename = head_response.headers.get("x-amz-meta-original_filename", key.split('/')[-1])
-                content_type = head_response.headers.get("Content-Type", "application/octet-stream")
+                filename = head_response.headers.get(
+                    "x-amz-meta-original_filename", key.split("/")[-1]
+                )
+                content_type = head_response.headers.get(
+                    "Content-Type", "application/octet-stream"
+                )
 
-                files.append({
-                    "key": key,
-                    "filename": filename,
-                    "size": size,
-                    "content_type": content_type,
-                    "last_modified": None,
-                    "etag": etag,
-                    "tags": {},
-                    "user_email": user_email
-                })
+                files.append(
+                    {
+                        "key": key,
+                        "filename": filename,
+                        "size": size,
+                        "content_type": content_type,
+                        "last_modified": None,
+                        "etag": etag,
+                        "tags": {},
+                        "user_email": user_email,
+                    }
+                )
 
-            logger.info(f"Listed {len(files)} files for user {sanitize_for_logging(user_email)}")
+            logger.info(
+                f"Listed {len(files)} files for user {sanitize_for_logging(user_email)}"
+            )
             return files
 
         except Exception as e:
@@ -319,20 +347,26 @@ class MockS3StorageClient:
         try:
             # Verify user has access to this file
             if not file_key.startswith(f"users/{user_email}/"):
-                logger.warning(f"Access denied for deletion: {sanitize_for_logging(user_email)} attempted to delete {sanitize_for_logging(file_key)}")
+                logger.warning(
+                    f"Access denied for deletion: {sanitize_for_logging(user_email)} attempted to delete {sanitize_for_logging(file_key)}"
+                )
                 raise Exception("Access denied to delete file")
 
             # Delete via TestClient
             response = self.client.delete(f"/{self.bucket_name}/{file_key}")
 
             if response.status_code == 404:
-                logger.warning(f"File not found for deletion: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}")
+                logger.warning(
+                    f"File not found for deletion: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}"
+                )
                 return False
 
             if response.status_code != 204:
                 raise Exception(f"Delete failed: {response.text}")
 
-            logger.info(f"File deleted successfully: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}")
+            logger.info(
+                f"File deleted successfully: {sanitize_for_logging(file_key)} for user {sanitize_for_logging(user_email)}"
+            )
             return True
 
         except Exception as e:
@@ -358,10 +392,10 @@ class MockS3StorageClient:
             generated_count = 0
 
             for file_data in files:
-                total_size += file_data['size']
+                total_size += file_data["size"]
 
                 # Determine type from key path
-                if "/generated/" in file_data['key']:
+                if "/generated/" in file_data["key"]:
                     generated_count += 1
                 else:
                     upload_count += 1
@@ -370,10 +404,12 @@ class MockS3StorageClient:
                 "total_files": len(files),
                 "total_size": total_size,
                 "upload_count": upload_count,
-                "generated_count": generated_count
+                "generated_count": generated_count,
             }
 
-            logger.info(f"Got file stats for user {sanitize_for_logging(user_email)}: {result}")
+            logger.info(
+                f"Got file stats for user {sanitize_for_logging(user_email)}: {result}"
+            )
             return result
 
         except Exception as e:

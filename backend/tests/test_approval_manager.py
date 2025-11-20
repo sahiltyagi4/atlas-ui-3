@@ -5,7 +5,7 @@ import pytest
 from application.chat.approval_manager import (
     ToolApprovalManager,
     ToolApprovalRequest,
-    get_approval_manager
+    get_approval_manager,
 )
 
 
@@ -18,7 +18,7 @@ class TestToolApprovalRequest:
             tool_call_id="test_123",
             tool_name="test_tool",
             arguments={"arg1": "value1"},
-            allow_edit=True
+            allow_edit=True,
         )
         assert request.tool_call_id == "test_123"
         assert request.tool_name == "test_tool"
@@ -29,17 +29,15 @@ class TestToolApprovalRequest:
     async def test_set_response(self):
         """Test setting a response to an approval request."""
         request = ToolApprovalRequest(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
-        
+
         # Set approved response
         request.set_response(approved=True, arguments={"arg1": "edited_value"})
-        
+
         # Wait for the response (should be immediate since we already set it)
         response = await request.wait_for_response(timeout=1.0)
-        
+
         assert response["approved"] is True
         assert response["arguments"] == {"arg1": "edited_value"}
 
@@ -47,17 +45,15 @@ class TestToolApprovalRequest:
     async def test_rejection_response(self):
         """Test rejecting an approval request."""
         request = ToolApprovalRequest(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
-        
+
         # Set rejected response
         request.set_response(approved=False, reason="User rejected")
-        
+
         # Wait for the response
         response = await request.wait_for_response(timeout=1.0)
-        
+
         assert response["approved"] is False
         assert response["reason"] == "User rejected"
 
@@ -65,11 +61,9 @@ class TestToolApprovalRequest:
     async def test_timeout(self):
         """Test that timeout works correctly."""
         request = ToolApprovalRequest(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
-        
+
         # Should timeout since we don't set a response
         with pytest.raises(asyncio.TimeoutError):
             await request.wait_for_response(timeout=0.1)
@@ -85,9 +79,9 @@ class TestToolApprovalManager:
             tool_call_id="test_123",
             tool_name="test_tool",
             arguments={"arg1": "value1"},
-            allow_edit=True
+            allow_edit=True,
         )
-        
+
         assert request.tool_call_id == "test_123"
         assert "test_123" in manager.get_pending_requests()
 
@@ -95,16 +89,12 @@ class TestToolApprovalManager:
         """Test handling an approval response."""
         manager = ToolApprovalManager()
         manager.create_approval_request(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
 
         # Handle approval response
         result = manager.handle_approval_response(
-            tool_call_id="test_123",
-            approved=True,
-            arguments={"arg1": "edited_value"}
+            tool_call_id="test_123", approved=True, arguments={"arg1": "edited_value"}
         )
 
         assert result is True
@@ -114,67 +104,64 @@ class TestToolApprovalManager:
     def test_handle_unknown_request(self):
         """Test handling response for unknown request."""
         manager = ToolApprovalManager()
-        
+
         result = manager.handle_approval_response(
-            tool_call_id="unknown_123",
-            approved=True
+            tool_call_id="unknown_123", approved=True
         )
-        
+
         assert result is False
 
     def test_cleanup_request(self):
         """Test cleaning up a completed request."""
         manager = ToolApprovalManager()
         manager.create_approval_request(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
-        
+
         assert "test_123" in manager.get_pending_requests()
-        
+
         manager.cleanup_request("test_123")
-        
+
         assert "test_123" not in manager.get_pending_requests()
 
     def test_get_approval_manager_singleton(self):
         """Test that get_approval_manager returns a singleton."""
         manager1 = get_approval_manager()
         manager2 = get_approval_manager()
-        
+
         assert manager1 is manager2
 
     @pytest.mark.asyncio
     async def test_full_approval_workflow(self):
         """Test the complete approval workflow."""
         manager = ToolApprovalManager()
-        
+
         # Create request
         request = manager.create_approval_request(
             tool_call_id="test_123",
             tool_name="test_tool",
             arguments={"code": "print('test')"},
-            allow_edit=True
+            allow_edit=True,
         )
-        
+
         # Simulate async approval (in a separate task)
         async def approve_after_delay():
             await asyncio.sleep(0.1)
             manager.handle_approval_response(
                 tool_call_id="test_123",
                 approved=True,
-                arguments={"code": "print('edited test')"}
+                arguments={"code": "print('edited test')"},
             )
-        
+
         # Start approval task
         asyncio.create_task(approve_after_delay())
 
         # Wait for response
         response = await request.wait_for_response(timeout=1.0)
-        
+
         assert response["approved"] is True
         assert response["arguments"]["code"] == "print('edited test')"
-        
+
         # Cleanup
         manager.cleanup_request("test_123")
         assert "test_123" not in manager.get_pending_requests()
@@ -186,19 +173,13 @@ class TestToolApprovalManager:
 
         # Create multiple requests
         request1 = manager.create_approval_request(
-            tool_call_id="test_1",
-            tool_name="tool_a",
-            arguments={"arg": "value1"}
+            tool_call_id="test_1", tool_name="tool_a", arguments={"arg": "value1"}
         )
         request2 = manager.create_approval_request(
-            tool_call_id="test_2",
-            tool_name="tool_b",
-            arguments={"arg": "value2"}
+            tool_call_id="test_2", tool_name="tool_b", arguments={"arg": "value2"}
         )
         request3 = manager.create_approval_request(
-            tool_call_id="test_3",
-            tool_name="tool_c",
-            arguments={"arg": "value3"}
+            tool_call_id="test_3", tool_name="tool_c", arguments={"arg": "value3"}
         )
 
         assert len(manager.get_pending_requests()) == 3
@@ -208,7 +189,9 @@ class TestToolApprovalManager:
             await asyncio.sleep(0.05)
             manager.handle_approval_response("test_2", approved=True)
             await asyncio.sleep(0.05)
-            manager.handle_approval_response("test_1", approved=False, reason="Rejected")
+            manager.handle_approval_response(
+                "test_1", approved=False, reason="Rejected"
+            )
             await asyncio.sleep(0.05)
             manager.handle_approval_response("test_3", approved=True)
 
@@ -234,7 +217,7 @@ class TestToolApprovalManager:
             tool_call_id="test_123",
             tool_name="test_tool",
             arguments=original_args,
-            allow_edit=True
+            allow_edit=True,
         )
 
         # Approve with same arguments
@@ -243,7 +226,7 @@ class TestToolApprovalManager:
             manager.handle_approval_response(
                 tool_call_id="test_123",
                 approved=True,
-                arguments={"code": "print('hello')"}  # Same as original
+                arguments={"code": "print('hello')"},  # Same as original
             )
 
         asyncio.create_task(approve())
@@ -256,9 +239,7 @@ class TestToolApprovalManager:
     async def test_double_response_handling(self):
         """Test that setting response twice doesn't cause issues."""
         request = ToolApprovalRequest(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
 
         # Set response first time
@@ -278,16 +259,14 @@ class TestToolApprovalManager:
         manager = ToolApprovalManager()
 
         request = manager.create_approval_request(
-            tool_call_id="test_123",
-            tool_name="test_tool",
-            arguments={"arg1": "value1"}
+            tool_call_id="test_123", tool_name="test_tool", arguments={"arg1": "value1"}
         )
 
         async def reject():
             await asyncio.sleep(0.05)
             manager.handle_approval_response(
                 tool_call_id="test_123",
-                approved=False
+                approved=False,
                 # No reason provided
             )
 
@@ -304,7 +283,7 @@ class TestToolApprovalManager:
             tool_call_id="test_123",
             tool_name="test_tool",
             arguments={"arg1": "value1"},
-            allow_edit=False
+            allow_edit=False,
         )
 
         assert request.allow_edit is False
@@ -345,45 +324,29 @@ class TestToolApprovalManager:
         manager = ToolApprovalManager()
 
         complex_args = {
-            "nested": {
-                "level1": {
-                    "level2": ["item1", "item2", "item3"]
-                }
-            },
-            "list_of_dicts": [
-                {"key": "value1"},
-                {"key": "value2"}
-            ],
-            "numbers": [1, 2, 3, 4, 5]
+            "nested": {"level1": {"level2": ["item1", "item2", "item3"]}},
+            "list_of_dicts": [{"key": "value1"}, {"key": "value2"}],
+            "numbers": [1, 2, 3, 4, 5],
         }
 
         request = manager.create_approval_request(
             tool_call_id="test_complex",
             tool_name="complex_tool",
             arguments=complex_args,
-            allow_edit=True
+            allow_edit=True,
         )
 
         # Modify nested structure
         edited_args = {
-            "nested": {
-                "level1": {
-                    "level2": ["item1", "modified_item", "item3"]
-                }
-            },
-            "list_of_dicts": [
-                {"key": "value1"},
-                {"key": "new_value"}
-            ],
-            "numbers": [1, 2, 3, 4, 5, 6]
+            "nested": {"level1": {"level2": ["item1", "modified_item", "item3"]}},
+            "list_of_dicts": [{"key": "value1"}, {"key": "new_value"}],
+            "numbers": [1, 2, 3, 4, 5, 6],
         }
 
         async def approve():
             await asyncio.sleep(0.05)
             manager.handle_approval_response(
-                tool_call_id="test_complex",
-                approved=True,
-                arguments=edited_args
+                tool_call_id="test_complex", approved=True, arguments=edited_args
             )
 
         asyncio.create_task(approve())
@@ -400,9 +363,7 @@ class TestToolApprovalManager:
 
         # First approval
         request1 = manager.create_approval_request(
-            tool_call_id="seq_1",
-            tool_name="tool_1",
-            arguments={"step": 1}
+            tool_call_id="seq_1", tool_name="tool_1", arguments={"step": 1}
         )
 
         async def approve1():
@@ -419,9 +380,7 @@ class TestToolApprovalManager:
 
         # Second approval after first is complete
         request2 = manager.create_approval_request(
-            tool_call_id="seq_2",
-            tool_name="tool_2",
-            arguments={"step": 2}
+            tool_call_id="seq_2", tool_name="tool_2", arguments={"step": 2}
         )
 
         async def approve2():
