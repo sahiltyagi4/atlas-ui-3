@@ -33,3 +33,7 @@ opentelemetry-exporter-otlp
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-httpx
 python-pptx
+intersect-sdk
+intersect-sdk[amqp]
+flowcept
+flowcept[extras]

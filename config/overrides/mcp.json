@@ -1,4 +1,56 @@
 {
+  "datapond": {
+    "command": [
+      "uvx",
+      "awslabs.aws-dataprocessing-mcp-server@latest",
+      "--allow-write"
+    ],
+    "groups": ["users"],
+    "backend": "stdio",
+    "cwd": "backend",
+    "env": {
+      "AWS_REGION": "us-east-1",
+      "AWS_ACCESS_KEY_ID": "access_key_id",
+      "AWS_SECRET_ACCESS_KEY": "secret_access_key"
+    }
+  },
+  "datacatalog": {
+    "command": [
+      "uvx",
+      "mcp-server-openmetadata"
+    ],
+    "groups": ["users"],
+    "cwd": "backend",
+    "env": {
+      "OPENMETADATA_HOST": "host_url",
+      "OPENMETADATA_JWT_TOKEN": "jwt_token",
+      "OPENMETADATA_USERNAME": "username",
+      "OPENMETADATA_PASSWORD": "passwd"
+    }
+  },
+  "intersect": {
+    "command": [
+      "python",
+      "mcp/intersect/main.py",
+      "mcp/intersect/settings.yaml"
+    ],
+    "cwd": "backend",
+    "groups": ["users"],
+    "author": "Sahil Tyagi",
+    "email": "tyagis@ornl.gov",
+    "description": "deploy virtual printer job over INTERSECT."
+  },
+  "flowcept": {
+    "command": [
+      "python",
+      "mcp/flowcpt_msg/main.py"
+    ],
+    "cwd": "backend",
+    "groups": ["users"],
+    "author": "Sahil Tyagi",
+    "email": "tyagis@ornl.gov",
+    "description": "listen to Flowcept messages."
+  },
   "calculator": {
     "command": [
       "python",

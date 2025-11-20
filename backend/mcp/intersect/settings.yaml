@@ -1,0 +1,28 @@
+# Remote: ORNL Cloud INTERSECT K8s
+data_stores: {}
+
+# NOTE: Broker information needs to be updated by user
+brokers:
+  - host: 127.0.0.1
+    username: username
+    password: password
+    port: port
+    protocol: mqtt3.1.1
+
+# Hierarchy for this adapter.
+# Currently set the same as the September 2025 demo.
+hierarchy_ros:
+  organization: ornl
+  facility: mdf
+  system: roost
+  subsystem: ros
+  service: vexpt
+
+# Hierarchy for the adamantine control service.
+# Currently set the same as the September 2025 demo.
+hierarchy_adamantine:
+  organization: adamantine-mock
+  facility: adamantine-facility
+  system: adamantine-mock-system
+  subsystem: adamantine-mock-subsystem
+  service: adamantine-mock-service
