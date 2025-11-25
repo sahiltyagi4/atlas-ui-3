@@ -7,7 +7,7 @@ services:
       - "9001:9001"  # Web Console
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: G3352vZocGED
     volumes:
       - ./data/minio:/data
     command: server /data --console-address ":9001"
@@ -27,7 +27,7 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc alias set myminio http://minio:9000 minioadmin G3352vZocGED;
       mc mb myminio/atlas-files --ignore-existing;
       mc anonymous set download myminio/atlas-files;
       echo 'MinIO initialization complete';
@@ -49,10 +49,22 @@ services:
       - S3_ENDPOINT=http://minio:9000
       - S3_BUCKET_NAME=atlas-files
       - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
+      - S3_SECRET_KEY=G3352vZocGED
       - S3_REGION=us-east-1
       - S3_USE_SSL=false
       - APP_LOG_DIR=/app/logs
+      - SECRET_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+      - SECRET_ANL_API_KEY=${ANL_API_KEY}
+      - FEATURE_TOOLS_ENABLED=true
+      - FEATURE_MARKETPLACE_ENABLED=true
+      - MOCK_RAG=false
+      - FEATURE_RAG_ENABLED=false
+      - AUTH_USER_HEADER=x-amzn-oidc-data
+      - AUTH_USER_HEADER_TYPE=aws-alb-jwt
+      - AUTH_AWS_EXPECTED_ALB_ARN=arn:aws:elasticloadbalancing:us-east-1:739605955121:loadbalancer/app/atlas/3bc88bf196cb158d
+      - AUTH_AWS_REGION=us-east-1
+      - FEATURE_FILES_PANEL_ENABLED=true
     volumes:
       - ./logs:/app/logs
       - ./config/overrides:/app/config/overrides
