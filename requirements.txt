@@ -37,3 +37,5 @@ opentelemetry-instrumentation-httpx
 python-pptx
 intersect-sdk[amqp]
 flowcept[extras]
+mcp-server-openmetadata
+awslabs-aws-dataprocessing-mcp-server

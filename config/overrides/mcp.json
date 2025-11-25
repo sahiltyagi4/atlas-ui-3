@@ -10,8 +10,8 @@
     "cwd": "backend",
     "env": {
       "AWS_REGION": "us-east-1",
-      "AWS_ACCESS_KEY_ID": "key",
-      "AWS_SECRET_ACCESS_KEY": "secret"
+      "AWS_ACCESS_KEY_ID": "key_id",
+      "AWS_SECRET_ACCESS_KEY": "aws_secret"
     }
   },
   "catalog": {
@@ -22,7 +22,7 @@
     "groups": ["users"],
     "cwd": "backend",
     "env": {
-      "OPENMETADATA_HOST": "openmeta_url",
+      "OPENMETADATA_HOST": "host_url",
       "OPENMETADATA_JWT_TOKEN": "jwt_token"
     }
   },
