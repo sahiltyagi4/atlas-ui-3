@@ -44,7 +44,7 @@ const WelcomeScreen = () => {
             // Optionally, you can show a fallback image or text here
           }}
         />
-+      </div>
+      </div>
     </div>
   )
 }
