@@ -130,6 +130,8 @@ def launch_intersect(
     operation = options["2"]["operation"]
     payload = options["2"]["payload"]
 
+    client_hierarchy = from_config_file.get("hierarchy_client", {})
+
     if operation is not None:
         try:
             initial_messages = [
@@ -145,6 +147,9 @@ def launch_intersect(
                 initial_message_event_config=IntersectClientCallback(
                     messages_to_send=initial_messages,
                 ),
+                organization=client_hierarchy.get("organization", "tmp"),
+                facility=client_hierarchy.get("facility", "tmp"),
+                system=client_hierarchy.get("system", "tmp"),
             )
             client = IntersectClient(
                 config=config,
