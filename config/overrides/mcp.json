@@ -10,8 +10,8 @@
     "cwd": "backend",
     "env": {
       "AWS_REGION": "us-east-1",
-      "AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
-      "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY"
+      "AWS_ACCESS_KEY_ID": "key",
+      "AWS_SECRET_ACCESS_KEY": "secret"
     }
   },
   "catalog": {
@@ -22,8 +22,8 @@
     "groups": ["users"],
     "cwd": "backend",
     "env": {
-      "OPENMETADATA_HOST": "OPENMETADATA_HOST",
-      "OPENMETADATA_JWT_TOKEN": "OPENMETADATA_JWT_TOKEN"
+      "OPENMETADATA_HOST": "openmeta_url",
+      "OPENMETADATA_JWT_TOKEN": "jwt_token"
     }
   },
   "intersect": {

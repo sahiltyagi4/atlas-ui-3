@@ -13,7 +13,7 @@ mcp = FastMCP("Prompts")
 
 
 @mcp.prompt
-def data_lakehouse() -> PromptMessage:
+def hpdf_demo() -> PromptMessage:
     content = """
     - Use the catalog when asked about datasets or data discovery related questions. 
     - The entities most used in the catalog are Containers and Tables; look at those first. 
@@ -165,10 +165,10 @@ def list_available_prompts() -> Dict[str, Any]:
     # }
 
     prompts = {
-        "data_lakehouse": {
-            "description": "Your are an expert at querying and accessing the data lakehouse.",
+        "hpdf_demo": {
+            "description": "Your are an expert at querying and accessing the data catalog and lakehouse.",
             "type": "system_prompt",
-            "category": "specialized",
+            "category": "professional",
         },
     }
     
